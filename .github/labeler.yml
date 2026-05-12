@@ -54,12 +54,6 @@
           - '.github/repository-labels.json'
           - '.github/labeler.yml'
           - '.github/dependabot.yml'
-          - 'docs/branch-strategy.md'
-          - 'docs/github-ruleset-checklist.md'
-          - 'docs/commit-conventions.md'
-          - 'docs/release-versioning.md'
-          - 'docs/release-checklist.md'
-          - 'docs/release-hardening.md'
           - 'CONTRIBUTING.md'
 
 "area: security":
@@ -72,7 +66,6 @@
           - '.github/workflows/ci.yml'
           - '.github/workflows/dependency-review.yml'
           - '.github/workflows/secret-scanning.yml'
-          - 'docs/release-hardening.md'
           - 'SECURITY.md'
 
 "area: tests":

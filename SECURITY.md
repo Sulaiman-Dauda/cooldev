@@ -8,19 +8,13 @@ Use the newest supported release whenever possible.
 | --- | --- |
 | `main` | Yes |
 | latest stable release | Yes |
-| active `release/*` stabilization branch | Yes |
 | older unsupported releases | No |
 
 ## Reporting a vulnerability
 
 Please do **not** open a public GitHub issue for security vulnerabilities, secrets, or exploit details.
 
-Use one of these private channels instead:
-
-- GitHub Security Advisories / private vulnerability reporting for this repository
-- Email the maintainers at `security@YOUR_ORG.example`
-
-Replace the placeholder email before public shipping.
+Use GitHub Security Advisories or private vulnerability reporting for this repository.
 
 Please include:
 
@@ -44,7 +38,7 @@ Maintainers should aim to:
 This policy covers security issues in areas such as:
 
 - owner auth, sessions, CSRF, and password reset
-- server-side access to the managed platform
+- server-side access to the workspace runtime
 - domain cutover and HTTPS automation
 - installer/runtime wiring
 - container image publishing and release artifacts
@@ -69,5 +63,3 @@ CoolDev release automation is designed to publish:
 - cosign signatures
 - provenance attestations
 - SBOM artifacts
-
-See `docs/release-hardening.md` for verification guidance.

@@ -28,9 +28,9 @@
 
 - [ ] `docker-compose.release.yml`
 - [ ] `.env.example`
-- [ ] `docs/production-release.md`
-- [ ] `docs/deployment-diagram.md`
-- [ ] `docs/release-hardening.md`
+- [ ] `docs/README.md`
+- [ ] `docs/installation.md`
+- [ ] `docs/self-hosting.md`
 
 ### Supply-chain hardening
 

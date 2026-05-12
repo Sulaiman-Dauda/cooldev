@@ -52,10 +52,6 @@ jobs:
               'package-lock.json',
               'CHANGELOG.md',
               'docker-compose.release.yml',
-              'docs/production-release.md',
-              'docs/release-versioning.md',
-              'docs/release-checklist.md',
-              'docs/release-hardening.md',
               'scripts/create-release-tag.sh',
               'scripts/build-release-bundle.sh',
               '.github/workflows/release.yml',
@@ -76,7 +72,6 @@ jobs:
             if (
               fileNames.some((name) => name.startsWith('.github/'))
               || fileNames.includes('CONTRIBUTING.md')
-              || fileNames.includes('docs/branch-strategy.md')
             ) {
               labels.add('area: governance')
             }

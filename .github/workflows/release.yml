@@ -253,17 +253,11 @@ jobs:
             dist/release/install.sh
             dist/release/.env.example
             dist/release/docker-compose.release.yml
-            dist/release/production-release.md
-            dist/release/release-hardening.md
             ${{ steps.meta.outputs.release_notes_file }}
             ${{ steps.meta.outputs.changelog_artifact_file }}
             ${{ steps.meta.outputs.changelog_snapshot_file }}
             ${{ steps.meta.outputs.sbom_file }}
             ${{ steps.meta.outputs.trivy_file }}
-            docs/deployment-diagram.md
-            docs/release-versioning.md
-            docs/release-checklist.md
-            docs/commit-conventions.md
 
       - name: Publish GitHub release
         if: github.ref_type == 'tag'
@@ -277,14 +271,8 @@ jobs:
             dist/release/install.sh \
             dist/release/.env.example \
             dist/release/docker-compose.release.yml \
-            dist/release/production-release.md \
-            dist/release/release-hardening.md \
             "${{ steps.meta.outputs.release_notes_file }}" \
             "${{ steps.meta.outputs.changelog_artifact_file }}" \
             "${{ steps.meta.outputs.changelog_snapshot_file }}" \
             "${{ steps.meta.outputs.sbom_file }}" \
-            "${{ steps.meta.outputs.trivy_file }}" \
-            docs/deployment-diagram.md \
-            docs/release-versioning.md \
-            docs/release-checklist.md \
-            docs/commit-conventions.md
+            "${{ steps.meta.outputs.trivy_file }}"

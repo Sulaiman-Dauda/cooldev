@@ -2,18 +2,16 @@
 
 Thanks for contributing to CoolDev.
 
-This guide covers the normal contributor flow for product work, runtime changes, docs, and releases.
+This guide covers the standard contributor flow for product work, runtime changes, docs, and releases.
 
 ## Before you start
 
 Read these files first:
 
 - `README.md`
-- `docs/branch-strategy.md`
-- `docs/github-ruleset-checklist.md`
-- `docs/commit-conventions.md`
-- `docs/release-versioning.md`
-- `docs/release-checklist.md`
+- `docs/README.md`
+- `docs/installation.md`
+- `docs/self-hosting.md`
 - `SECURITY.md`
 
 ## Local setup
@@ -31,23 +29,6 @@ npm run build
 npm run smoke:ci
 npm run release:check
 ```
-
-## Branch naming
-
-Recommended branch prefixes:
-
-- `feat/*`
-- `fix/*`
-- `docs/*`
-- `ci/*`
-- `refactor/*`
-- `perf/*`
-- `test/*`
-- `chore/*`
-- `release/*`
-- `hotfix/*`
-
-Use `release/*` only for release stabilization.
 
 ## Commit messages
 
@@ -71,8 +52,6 @@ npm run ci:commits -- --range origin/main..HEAD
 
 ## Pull requests
 
-### Normal PRs
-
 A good PR should:
 
 - stay focused on one change set
@@ -80,13 +59,10 @@ A good PR should:
 - include test coverage or validation notes
 - pass CI
 
-### Release PRs
+Release changes should also:
 
-Release and prerelease PRs should:
-
-- use the matching PR template
 - update `CHANGELOG.md`
-- generate or review release notes
+- review the public docs when behavior changes
 - pass `npm run release:check`
 
 Validate changelog gating locally when version changes:
@@ -128,11 +104,12 @@ npm run release:check
 
 Update docs when you change:
 
-- release flow
-- runtime assumptions
-- branch/governance policy
-- auth/security behavior
-- domain/HTTPS behavior
+- installation or upgrade flow
+- first-run onboarding behavior
+- resource workflows
+- domain and HTTPS behavior
+- provider setup or deployment workflows
+- self-hosting or runtime assumptions
 
 ## Versioning and releases
 
@@ -164,11 +141,3 @@ npm run release:tag -- --push
 CODEOWNERS are defined in `.github/CODEOWNERS`.
 
 If you touch a protected area, expect review from the configured owners.
-
-## Reporting bugs
-
-Use the issue templates in `.github/ISSUE_TEMPLATE/`.
-
-For release regressions, use the release bug template so the report includes the version, deployment path, and regression details.
-
-For vulnerabilities, do not open a public issue. Follow `SECURITY.md` instead.
