@@ -7,6 +7,7 @@ Generated from git history by scripts/update-changelog.sh.
 ### Other changes
 
 - Remove duplicate changelog asset (e480cb4)
+- Exclude built artifacts from Vitest discovery (unreleased)
 
 
 ## v0.1.2 - 2026-05-12
