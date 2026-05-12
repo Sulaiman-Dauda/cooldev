@@ -193,7 +193,7 @@ describe('ResourcesView', () => {
     await user.click(screen.getByText('primary-db'))
 
     await waitFor(() => {
-      expect(screen.getByText('Managed database')).toBeTruthy()
+      expect(screen.getByText('Database')).toBeTruthy()
     })
 
     expect(screen.getByText('postgres://primary-db:5432')).toBeTruthy()

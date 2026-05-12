@@ -1139,7 +1139,7 @@ export function ResourcesView({ onNavigate }: ResourcesViewProps) {
                 <div className="subpanel">
                   <div className="panel-heading" style={{ marginBottom: 0 }}>
                     <div>
-                      <p className="eyebrow">Managed database</p>
+                      <p className="eyebrow">Database</p>
                       <h3>{selectedDatabase.name}</h3>
                     </div>
                     <StatusChip label={selectedDatabase.status ?? 'Unknown'} />
@@ -1151,14 +1151,14 @@ export function ResourcesView({ onNavigate }: ResourcesViewProps) {
                     </div>
                     <div className="subpanel">
                       <strong style={{ fontSize: '0.8rem', color: 'var(--text-heading)' }}>Internal connection</strong>
-                      <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-muted)', wordBreak: 'break-all' }}>{selectedDatabase.internal_db_url ?? 'Managed internally by Coolify'}</code>
+                      <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-muted)', wordBreak: 'break-all' }}>{selectedDatabase.internal_db_url ?? 'Managed by CoolDev'}</code>
                     </div>
                   </div>
                 </div>
 
                 <div className="subpanel">
                   <strong style={{ fontSize: '0.8rem', color: 'var(--text-heading)' }}>Quick actions</strong>
-                  <p className="field-hint">Database editing is still controlled from the managed platform. CoolDev now exposes the active engine and connection summary here instead of a dead click target.</p>
+                  <p className="field-hint">Review the engine and connection details here, then remove the database when you are ready.</p>
                   <button
                     type="button"
                     className="secondary-action danger-action"

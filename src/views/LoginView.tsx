@@ -197,28 +197,28 @@ export function LoginView() {
       state: currentUser ? 'complete' : 'active',
     },
     {
-      detail: 'CoolDev is waiting for the managed services to answer internal health checks.',
+      detail: 'CoolDev is bringing the workspace online.',
       id: 'managed-services',
-      label: 'Managed services responding',
+      label: 'Background services ready',
       state: currentUser ? 'active' : 'pending',
     },
     {
-      detail: 'CoolDev will continue as soon as the server-side platform connection is available.',
+      detail: 'CoolDev will continue as soon as the workspace connection is ready.',
       id: 'server-connection',
-      label: 'Server-side connection ready',
+      label: 'Workspace connection ready',
       state: 'pending',
     },
     {
-      detail: 'The managed workspace API will be verified automatically once the connection is ready.',
+      detail: 'CoolDev will verify the workspace automatically as setup completes.',
       id: 'workspace-api',
-      label: 'Workspace API verified',
+      label: 'Workspace ready',
       state: 'pending',
     },
   ]
   const completedSetupSteps = setupSteps.filter((step) => step.state === 'complete').length
   const setupPercent = setupProgress?.percent ?? Math.round((completedSetupSteps / setupSteps.length) * 100)
   const setupMeterWidth = Math.max(setupPercent, currentUser ? 25 : 8)
-  const setupSummary = setupProgress?.summary ?? 'CoolDev is checking the managed platform behind the scenes.'
+  const setupSummary = setupProgress?.summary ?? 'CoolDev is checking the workspace in the background.'
   const setupDetail = setupProgress?.detail
     ?? 'Keep this page open while CoolDev checks real startup milestones automatically every few seconds.'
 
@@ -537,9 +537,9 @@ export function LoginView() {
           <>
             <h1 className="login-heading">Finalizing setup</h1>
             <p className="login-subheading">
-              Your account is ready. CoolDev is bringing up the managed platform
-              and will take you directly into server onboarding once everything
-              is live.
+              Your account is ready. CoolDev is finishing workspace setup and
+              will take you directly into server onboarding once everything is
+              live.
             </p>
 
             <div className="info-banner">
@@ -588,7 +588,7 @@ export function LoginView() {
               </div>
 
               <div className="field-hint" style={{ display: 'grid', gap: 8 }}>
-                <span>• You will continue to server setup as soon as the platform is ready.</span>
+                <span>• You will continue to server setup as soon as the workspace is ready.</span>
                 <span>• If this takes more than a minute or two, rerun the installer on the server.</span>
               </div>
 

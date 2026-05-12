@@ -155,7 +155,7 @@ describe('SettingsView', () => {
 
   afterEach(() => {
     localStorage.clear()
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   it('shows live platform, domain automation, and profile details', async () => {
@@ -200,7 +200,7 @@ describe('SettingsView', () => {
     expect(screen.getByText(/CoolDev is finishing HTTPS provisioning/i)).toBeTruthy()
   })
 
-  it('keeps domain management available when upstream workspace settings are unavailable', async () => {
+  it('keeps domain management available when shared workspace settings are unavailable', async () => {
     const user = userEvent.setup()
 
     vi.mocked(getAccessStatus).mockResolvedValueOnce({
@@ -246,7 +246,7 @@ describe('SettingsView', () => {
       expect(domainInput.hasAttribute('disabled')).toBe(false)
     })
 
-    expect(screen.getByText(/Domain management still works through CoolDev/i)).toBeTruthy()
+    expect(screen.getByText(/Shared workspace settings are not available yet/i)).toBeTruthy()
 
     await user.clear(domainInput)
     await user.type(domainInput, 'https://cooldev.backnd.top')
@@ -260,10 +260,10 @@ describe('SettingsView', () => {
     })
 
     expect(screen.getByText('Current domain: https://cooldev.backnd.top')).toBeTruthy()
-    expect(screen.getByText(/keep the workspace domain and proxy cutover in sync locally/i)).toBeTruthy()
+    expect(screen.getByText(/keep this workspace domain active locally on this host/i)).toBeTruthy()
   })
 
-  it('shows local fallback metadata when workspace settings and 2FA are unsupported upstream', async () => {
+  it('shows local fallback metadata when shared settings and 2FA are unavailable', async () => {
     vi.mocked(getInstanceSettings).mockResolvedValueOnce({
       instance_name: 'CoolDev',
       public_url: 'https://cooldev.backnd.top',
@@ -284,14 +284,14 @@ describe('SettingsView', () => {
     render(<SettingsView />)
 
     await waitFor(() => {
-      expect(screen.getByText(/Domain management still works through CoolDev/i)).toBeTruthy()
+      expect(screen.getByText(/Shared workspace settings are not available yet/i)).toBeTruthy()
     })
 
     expect(screen.getByDisplayValue('https://cooldev.backnd.top')).toBeTruthy()
     expect(screen.getByText('Sulaiman Operator • sulaiman@example.com')).toBeTruthy()
     expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0)
-    expect(screen.getByText(/Two-factor authentication is not supported by this Coolify version/i)).toBeTruthy()
-    expect(screen.getByText(/Not supported on this Coolify version/i)).toBeTruthy()
+    expect(screen.getAllByText(/Two-factor management is not available on this workspace yet/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/^Not available on this installation$/i)).toBeTruthy()
   })
 
   it('shows domain conflicts and allows forcing the workspace domain override on retry', async () => {
@@ -432,7 +432,7 @@ describe('SettingsView', () => {
       expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0)
     })
 
-    expect(screen.getByText(/Cannot reach the managed platform/i)).toBeTruthy()
+    expect(screen.getByText(/Cannot reach the workspace runtime/i)).toBeTruthy()
     expect(screen.getByText('Version unavailable.')).toBeTruthy()
     expect(screen.getByText('Team context unavailable.')).toBeTruthy()
     expect(screen.getByText('Instance settings unavailable')).toBeTruthy()

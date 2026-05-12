@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# CoolDev installer — provisions the full CoolDev product and its managed
-# platform together.
+# CoolDev installer — provisions the full product and its bundled runtime
+# together.
 # Run the published release installer asset as root on a fresh Debian/Ubuntu server.
 #
 # Public flags:
@@ -76,17 +76,17 @@ resolve_server_ip() {
 }
 
 install_managed_platform() {
-  info "Installing the managed platform …"
+  info "Installing the bundled runtime …"
   curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
-  ok "Managed platform installed"
+  ok "Bundled runtime installed"
 }
 
 wait_for_platform_health() {
-  info "Waiting for the managed platform to become healthy …"
+  info "Waiting for the bundled runtime to become healthy …"
   local retries=40
   while [[ $retries -gt 0 ]]; do
     if curl -sf "${PLATFORM_HEALTH_URL}/api/v1/health" &>/dev/null; then
-      ok "Managed platform healthy"
+      ok "Bundled runtime healthy"
       return 0
     fi
     sleep 3
@@ -132,7 +132,7 @@ if (! $rootUser) {
 
 $rootUser = App\Models\User::find(0);
 if (! $rootUser) {
-    fwrite(STDERR, "Could not create the root Coolify user.\n");
+  fwrite(STDERR, "Could not create the workspace system user.\n");
     exit(1);
 }
 
@@ -142,7 +142,7 @@ if (! $rootTeam) {
 }
 
 if (! $rootTeam || (int) $rootTeam->id !== 0) {
-    fwrite(STDERR, "Could not create the root Coolify team.\n");
+  fwrite(STDERR, "Could not create the workspace system team.\n");
     exit(1);
 }
 
@@ -181,7 +181,7 @@ $rootUser = App\Models\User::find(0);
 $rootTeam = App\Models\Team::find(0);
 
 if (! $rootUser || ! $rootTeam) {
-    fwrite(STDERR, "Root Coolify tenant is missing.\n");
+  fwrite(STDERR, "The workspace system tenant is missing.\n");
     exit(1);
 }
 
@@ -435,21 +435,21 @@ bootstrap_platform() {
     install_managed_platform
 
     if ! wait_for_platform_health; then
-      fail "The managed platform never became healthy. CoolDev does not expose manual browser token setup. Rerun the installer after the platform is ready."
+      fail "The bundled runtime never became healthy. CoolDev does not expose manual browser token setup. Rerun the installer after the runtime is ready."
     fi
 
     if [[ -n "$PLATFORM_API_TOKEN" ]]; then
-      info "Using the provided platform connection for bootstrap …"
+      info "Using the provided runtime connection for bootstrap …"
     elif seed_platform_api_token; then
-      ok "Server-side platform connection created"
+      ok "Server-side runtime connection created"
     else
-      fail "Automatic platform bootstrap failed. CoolDev does not expose manual browser token setup. Rerun the installer after the platform is ready."
+      fail "Automatic runtime bootstrap failed. CoolDev does not expose manual browser token setup. Rerun the installer after the runtime is ready."
     fi
   else
     if [[ -z "$PLATFORM_API_TOKEN" ]]; then
-      fail "Internal compatibility mode requires a platform token at install time."
+      fail "Internal compatibility mode requires a runtime token at install time."
     fi
-    info "Using the provided platform connection for compatibility mode …"
+    info "Using the provided runtime connection for compatibility mode …"
   fi
 }
 

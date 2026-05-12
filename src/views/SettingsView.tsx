@@ -131,7 +131,7 @@ export function SettingsView() {
     qrCodeSvg: string
     recoveryCodes: string[]
   } | null>(null)
-  // null = unknown, true = capable, false = not available on this Coolify version
+  // null = unknown, true = capable, false = not available on this installation
   const [twoFactorCapable, setTwoFactorCapable] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -200,7 +200,7 @@ export function SettingsView() {
         setPlatformHealthError(null)
       } else {
         setPlatformHealthStatus('failed')
-        setPlatformHealthError(getErrorMessage(healthResult.reason, 'Could not reach the managed platform.'))
+        setPlatformHealthError(getErrorMessage(healthResult.reason, 'Could not reach the workspace runtime.'))
       }
 
       if (versionResult.status === 'fulfilled' && versionResult.value) {
@@ -233,7 +233,7 @@ export function SettingsView() {
         setInstanceSettingsError(
           workspaceSettingsSupported
             ? null
-            : 'This Coolify build does not expose workspace settings over the API. Domain management still works through CoolDev.',
+            : 'Shared workspace settings are not available yet. Domain management still works in CoolDev.',
         )
         setWorkspaceDomain(instanceSettingsResult.value.public_url ?? fallbackWorkspaceDomain)
       } else {
@@ -264,7 +264,7 @@ export function SettingsView() {
         setProfile(null)
         setProfileStatus('failed')
         const profileErr = profileResult.status === 'rejected' ? profileResult.reason : null
-        // A 404 on the profile endpoint means 2FA APIs are not available on this version
+        // A 404 on the profile endpoint means two-factor management is not available on this installation.
         if (profileErr instanceof ApiError && profileErr.status === 404) {
           setTwoFactorCapable(false)
         }
@@ -358,7 +358,7 @@ export function SettingsView() {
       setInstanceSettingsError(
         workspaceSettingsSynced
           ? null
-          : 'This Coolify build does not expose workspace settings over the API. CoolDev saved the domain locally instead.'
+          : 'Shared workspace settings are not available yet. CoolDev saved this domain locally instead.'
       )
       setWorkspaceDomain(result.instanceSettings.public_url ?? result.accessStatus.currentDomain ?? '')
       setAccessStatus(result.accessStatus)
@@ -408,12 +408,12 @@ export function SettingsView() {
       })
       setTwoFactorCode('')
     } catch (error) {
-      // A 404 means the Coolify version in use does not expose the 2FA endpoints
+      // A 404 means this installation does not expose the two-factor management endpoints.
       if (error instanceof ApiError && error.status === 404) {
         setTwoFactorCapable(false)
         setSecurityError(
-          'Two-factor authentication is not available on your Coolify version. ' +
-          'Update Coolify to a version that exposes the /profile/two-factor endpoint to use this feature.',
+          'Two-factor management is not available on this workspace yet. ' +
+          'Update the workspace runtime to enable it.',
         )
       } else {
         setSecurityError(getErrorMessage(error, 'Could not start two-factor authentication setup.'))
@@ -459,7 +459,7 @@ export function SettingsView() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         setTwoFactorCapable(false)
-        setSecurityError('Two-factor authentication is not available on your Coolify version.')
+        setSecurityError('Two-factor management is not available on this workspace yet.')
       } else {
         setSecurityError(getErrorMessage(error, 'Could not disable two-factor authentication.'))
       }
@@ -476,7 +476,7 @@ export function SettingsView() {
       : instanceSettingsStatus === 'checking'
         ? 'Loading shared workspace settings.'
         : workspaceSettingsFallbackActive
-          ? 'This Coolify build does not expose workspace settings over the API. Domain management still works through CoolDev.'
+          ? 'Shared workspace settings are not available yet. Domain management still works in CoolDev.'
           : instanceSettingsError ?? 'Workspace settings unavailable.'
 
   const securityChipText =
@@ -507,7 +507,7 @@ export function SettingsView() {
 
   const securitySummary =
     twoFactorCapable === false
-      ? 'Two-factor authentication is not supported by this Coolify version. Update Coolify to enable this feature.'
+      ? 'Two-factor management is not available on this workspace yet. Update the workspace runtime to enable it.'
       : profileStatus === 'checking'
         ? 'Loading the authenticated user profile.'
         : profileStatus === 'failed'
@@ -570,7 +570,7 @@ export function SettingsView() {
 
         <div className="settings-row">
           <div>
-            <strong>Managed platform</strong>
+            <strong>Workspace runtime</strong>
             <small>
               {platformReady
                 ? 'Connected and operating normally.'
@@ -584,13 +584,13 @@ export function SettingsView() {
 
         <div className="settings-row">
           <div>
-            <strong>Platform health</strong>
+            <strong>Runtime health</strong>
             <small>
               {platformHealthStatus === 'ready'
                 ? 'Health check passed.'
                 : platformHealthStatus === 'checking'
                   ? 'Running health check…'
-                  : `Cannot reach the managed platform. ${platformHealthError ?? ''}`.trim()}
+                  : `Cannot reach the workspace runtime. ${platformHealthError ?? ''}`.trim()}
             </small>
           </div>
           <span className={`chip ${platformHealthStatus === 'ready' ? 'chip-ready' : platformHealthStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
@@ -600,12 +600,12 @@ export function SettingsView() {
 
         <div className="settings-row">
           <div>
-            <strong>Platform version</strong>
+            <strong>Runtime version</strong>
             <small>
               {platformVersion
                 ? `Version ${platformVersion}`
                 : platformVersionStatus === 'checking'
-                  ? 'Detecting the managed platform version.'
+                  ? 'Detecting the workspace runtime version.'
                   : 'Version unavailable.'}
             </small>
           </div>
@@ -691,8 +691,8 @@ export function SettingsView() {
 
           {workspaceSettingsFallbackActive && (
             <p className="field-hint" style={{ margin: 0 }}>
-              CoolDev will keep the workspace domain and proxy cutover in sync locally on this host,
-              even though the upstream workspace settings endpoint is unavailable.
+              CoolDev will keep this workspace domain active locally on this host while
+              shared settings remain unavailable.
             </p>
           )}
 
@@ -855,10 +855,10 @@ export function SettingsView() {
             <div className="info-banner" style={{ flex: 1, marginTop: 0 }}>
               <AlertIcon size={13} />
               <div>
-                <strong>Not supported on this Coolify version</strong>
+                <strong>Not available on this installation</strong>
                 <p>
-                  The 2FA management endpoints are not available on your current Coolify installation.
-                  Update Coolify to a recent version to enable two-factor authentication.
+                  Two-factor management is not available on this workspace yet.
+                  Update the runtime to enable two-factor authentication.
                 </p>
               </div>
             </div>

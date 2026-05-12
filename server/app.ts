@@ -343,12 +343,12 @@ function buildBootstrapSetupProgress(input: {
       : 'active'
   const managedServicesStep: BootstrapSetupStep = {
     detail: input.servicesHealthy === true
-      ? 'The managed services are answering internal health checks.'
+      ? 'Background services are online.'
       : input.platformBaseUrl
-        ? 'CoolDev is waiting for the managed services to answer internal health checks.'
-        : 'CoolDev is waiting for the managed platform address to become available.',
+        ? 'CoolDev is bringing the workspace online.'
+        : 'CoolDev is finishing workspace setup.',
     id: 'managed-services',
-    label: 'Managed services responding',
+    label: 'Background services ready',
     state: managedServicesState,
   }
 
@@ -359,12 +359,12 @@ function buildBootstrapSetupProgress(input: {
       : 'active'
   const connectionStep: BootstrapSetupStep = {
     detail: input.tokenConfigured
-      ? 'CoolDev has the server-side platform connection it needs.'
+      ? 'The workspace connection is ready.'
       : input.servicesHealthy === true
-        ? 'CoolDev is waiting for the server-side platform connection to appear.'
-        : 'CoolDev will create the server-side platform connection after the managed services respond.',
+        ? 'CoolDev is finalizing the workspace connection.'
+        : 'CoolDev will finalize the workspace connection after the background services are ready.',
     id: 'server-connection',
-    label: 'Server-side connection ready',
+    label: 'Workspace connection ready',
     state: connectionState,
   }
 
@@ -375,12 +375,12 @@ function buildBootstrapSetupProgress(input: {
       : 'active'
   const workspaceStep: BootstrapSetupStep = {
     detail: input.platformReachable === true
-      ? 'The managed workspace API is responding and CoolDev can continue.'
+      ? 'The workspace is responding and ready to continue.'
       : input.tokenConfigured && input.servicesHealthy === true
-        ? 'CoolDev is verifying the managed workspace API before continuing.'
-        : 'The managed workspace API will be verified automatically once the connection is ready.',
+        ? 'CoolDev is verifying the workspace before continuing.'
+        : 'CoolDev will verify the workspace automatically as setup completes.',
     id: 'workspace-api',
-    label: 'Workspace API verified',
+    label: 'Workspace ready',
     state: workspaceState,
   }
 
@@ -390,7 +390,7 @@ function buildBootstrapSetupProgress(input: {
 
   if (!input.hasOwner) {
     return {
-      detail: 'CoolDev can keep preparing the managed platform in the background while you create the owner account.',
+      detail: 'CoolDev can finish setup in the background while you create the owner account.',
       percent,
       status: 'waiting-for-owner',
       steps,
@@ -400,31 +400,31 @@ function buildBootstrapSetupProgress(input: {
 
   if (input.servicesHealthy !== true) {
     return {
-      detail: 'CoolDev is polling the internal managed-platform health checks automatically every few seconds.',
+      detail: 'CoolDev is checking the background services automatically every few seconds.',
       percent,
       status: 'starting-services',
       steps,
-      summary: 'Managed services are still starting',
+      summary: 'Finishing workspace startup',
     }
   }
 
   if (!input.tokenConfigured) {
     return {
-      detail: 'CoolDev will continue automatically as soon as the server-side platform connection is available.',
+      detail: 'CoolDev will continue automatically as soon as the workspace connection is ready.',
       percent,
       status: 'creating-connection',
       steps,
-      summary: 'Waiting for the server-side platform connection',
+      summary: 'Preparing your workspace',
     }
   }
 
   if (input.platformReachable !== true) {
     return {
-      detail: 'The managed services are up and CoolDev is verifying that the workspace API can answer requests.',
+      detail: 'Core services are online and CoolDev is verifying the workspace.',
       percent,
       status: 'verifying-workspace',
       steps,
-      summary: 'Verifying the managed workspace API',
+      summary: 'Verifying your workspace',
     }
   }
 
@@ -1275,7 +1275,7 @@ export function createApp(options?: { rootDir?: string; store?: CooldevStore }) 
         message: extractApiMessage(payload, 'Could not load workspace settings.'),
       })
     } catch (error) {
-      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the managed platform.') })
+      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the workspace runtime.') })
     }
   })
 
@@ -1306,7 +1306,7 @@ export function createApp(options?: { rootDir?: string; store?: CooldevStore }) 
         message: extractApiMessage(payload, 'Could not load the current profile.'),
       })
     } catch (error) {
-      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the managed platform.') })
+      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the workspace runtime.') })
     }
   })
 
@@ -1333,7 +1333,7 @@ export function createApp(options?: { rootDir?: string; store?: CooldevStore }) 
 
       response.status(upstreamResponse.status).send(payload)
     } catch (error) {
-      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the managed platform.') })
+      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the workspace runtime.') })
     }
   })
 

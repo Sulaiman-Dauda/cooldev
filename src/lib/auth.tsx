@@ -2,7 +2,7 @@
  * CoolDev auth context
  *
  * Tracks the current CoolDev session, owner account state, and whether the
- * managed platform is ready behind the scenes.
+ * workspace runtime is ready behind the scenes.
  */
 
 import {
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const bootstrap = await getBootstrapState()
 
       // Prevent onboarding flicker: bootstrap serverCount can be stale immediately
-      // after the managed platform auto-connects the local server. Verify directly
+      // after the workspace runtime auto-connects the local server. Verify directly
       // before routing the user into the fullscreen onboarding gate.
       if (
         bootstrap.currentUser &&

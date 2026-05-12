@@ -66,10 +66,10 @@ type MockAuthState = {
 
 function createSetupProgress(overrides: Partial<NonNullable<MockAuthState['setupProgress']>> = {}) {
   return {
-    detail: 'CoolDev is polling the internal managed-platform health checks automatically every few seconds.',
+    detail: 'CoolDev is checking the background services automatically every few seconds.',
     percent: 25,
     status: 'starting-services' as const,
-    summary: 'Managed services are still starting',
+    summary: 'Finishing workspace startup',
     steps: [
       {
         detail: 'Signed in as sulaiman@example.com.',
@@ -78,21 +78,21 @@ function createSetupProgress(overrides: Partial<NonNullable<MockAuthState['setup
         state: 'complete' as const,
       },
       {
-        detail: 'CoolDev is waiting for the managed services to answer internal health checks.',
+        detail: 'CoolDev is bringing the workspace online.',
         id: 'managed-services' as const,
-        label: 'Managed services responding',
+        label: 'Background services ready',
         state: 'active' as const,
       },
       {
-        detail: 'CoolDev will continue as soon as the server-side platform connection is available.',
+        detail: 'CoolDev will continue as soon as the workspace connection is ready.',
         id: 'server-connection' as const,
-        label: 'Server-side connection ready',
+        label: 'Workspace connection ready',
         state: 'pending' as const,
       },
       {
-        detail: 'The managed workspace API will be verified automatically once the connection is ready.',
+        detail: 'CoolDev will verify the workspace automatically as setup completes.',
         id: 'workspace-api' as const,
-        label: 'Workspace API verified',
+        label: 'Workspace ready',
         state: 'pending' as const,
       },
     ],
@@ -223,9 +223,9 @@ describe('CoolDev auth gate', () => {
     render(<App />)
 
     expect(screen.getByText('Finalizing setup')).toBeTruthy()
-    expect(screen.getByText('Managed services are still starting')).toBeTruthy()
+    expect(screen.getByText('Finishing workspace startup')).toBeTruthy()
     expect(screen.getByText('1 of 4 steps complete')).toBeTruthy()
-    expect(screen.getByText('Managed services responding')).toBeTruthy()
+    expect(screen.getByText('Background services ready')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Retry now' })).toBeTruthy()
   })
 

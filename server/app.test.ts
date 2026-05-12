@@ -396,7 +396,7 @@ describe('CoolDev server routes', () => {
       setupProgress: {
         percent: 25,
         status: 'starting-services',
-        summary: 'Managed services are still starting',
+        summary: 'Finishing workspace startup',
       },
     })
     expect(response.body.setupProgress.steps).toEqual(

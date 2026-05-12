@@ -864,7 +864,7 @@ export function ProvidersView() {
               </div>
               <div className="timeline-item">
                 <strong>Push to deploy</strong>
-                <span>Every push is verified by signature and routes to the matching Coolify deployment automatically.</span>
+                <span>Every push is verified by signature and routed to the matching deployment automatically.</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
