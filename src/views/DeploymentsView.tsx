@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { humanizeDeploymentFailure } from '../lib/diagnostics'
 import {
   cancelDeployment,
@@ -114,6 +114,8 @@ export function DeploymentsView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const deferredSearch = useDeferredValue(search)
+  const logViewportRef = useRef<HTMLDivElement | null>(null)
+  const shouldStickToBottomRef = useRef(true)
 
   // Action state
   const [cancellingId, setCancellingId] = useState<string | null>(null)
@@ -250,6 +252,20 @@ export function DeploymentsView() {
     historyRecords[0] ??
     queueRecords[0]
 
+  useEffect(() => {
+    shouldStickToBottomRef.current = true
+  }, [selectedRecord?.id])
+
+  useEffect(() => {
+    const node = logViewportRef.current
+
+    if (!node || !selectedRecord || !shouldStickToBottomRef.current) {
+      return
+    }
+
+    node.scrollTop = node.scrollHeight
+  }, [selectedRecord?.id, selectedRecord?.rawLog])
+
   const diagnostic = selectedRecord
     ? describeDeployment(selectedRecord)
     : null
@@ -258,6 +274,17 @@ export function DeploymentsView() {
     selectedRecord?.status === 'Queued' || selectedRecord?.status === 'Building'
   const canRedeploy =
     selectedRecord?.status === 'Ready' || selectedRecord?.status === 'Failed'
+
+  function handleLogScroll() {
+    const node = logViewportRef.current
+
+    if (!node) {
+      return
+    }
+
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
+    shouldStickToBottomRef.current = distanceFromBottom < 24
+  }
 
   return (
     <section className="content-grid">
@@ -421,7 +448,17 @@ export function DeploymentsView() {
 
                 <div className="subpanel subtle-panel">
                   <p className="eyebrow">Raw logs</p>
-                  <pre className="log-card">{selectedRecord.rawLog}</pre>
+                  <div
+                    ref={logViewportRef}
+                    className="log-card-shell"
+                    role="log"
+                    aria-label="Deployment logs"
+                    aria-live={selectedRecord.status === 'Building' ? 'polite' : 'off'}
+                    tabIndex={0}
+                    onScroll={handleLogScroll}
+                  >
+                    <pre className="log-card">{selectedRecord.rawLog}</pre>
+                  </div>
                 </div>
               </>
             ) : (

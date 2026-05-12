@@ -83,6 +83,7 @@ describe('DeploymentsView', () => {
       expect(screen.getAllByText('worker').length).toBeGreaterThan(0)
     })
 
+    expect(screen.getByRole('log', { name: 'Deployment logs' })).toBeTruthy()
     expect(screen.getByText('Repository authentication failed')).toBeTruthy()
     expect(screen.getByText(/Could not read from remote repository/i)).toBeTruthy()
 

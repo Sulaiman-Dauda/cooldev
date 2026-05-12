@@ -7,6 +7,7 @@ import {
   createComposeService,
   createDatabaseBackup,
   createManagedDatabase,
+  createOneClickService,
   createPrivateDeployKeyApplication,
   createPrivateGithubAppApplication,
   createPrivateKey,
@@ -30,6 +31,7 @@ vi.mock('../lib/api', async () => {
     createComposeService: vi.fn(),
     createDatabaseBackup: vi.fn(),
     createManagedDatabase: vi.fn(),
+    createOneClickService: vi.fn(),
     createPrivateDeployKeyApplication: vi.fn(),
     createPrivateGithubAppApplication: vi.fn(),
     createPrivateKey: vi.fn(),
@@ -68,6 +70,7 @@ describe('DeployWizardView', () => {
     })
     vi.mocked(createDatabaseBackup).mockResolvedValue({ message: 'Backup created.' })
     vi.mocked(createManagedDatabase).mockResolvedValue({ uuid: 'db-1' })
+    vi.mocked(createOneClickService).mockResolvedValue({ uuid: 'svc-one-click-1' })
     vi.mocked(createPrivateDeployKeyApplication).mockResolvedValue({ uuid: 'app-private-key-1' })
     vi.mocked(createPrivateGithubAppApplication).mockResolvedValue({ uuid: 'app-private-gh-1' })
     vi.mocked(createPrivateKey).mockResolvedValue({ uuid: 'key-new' })
@@ -130,7 +133,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Deploy now' }))
 
@@ -160,7 +162,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.type(screen.getByPlaceholderText('app.example.com'), 'deploytest.backnd.top')
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Deploy now' }))
@@ -209,7 +210,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.type(screen.getByPlaceholderText('app.example.com'), 'app.example.com')
     await user.click(screen.getByRole('button', { name: 'Deploy now' }))
@@ -250,7 +250,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Reveal' }))
 
@@ -310,7 +309,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={() => {}} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Reveal' }))
     await user.type(
@@ -466,7 +464,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Deploy now' }))
 
@@ -490,29 +487,25 @@ describe('DeployWizardView', () => {
     expect(onNavigate).toHaveBeenCalledWith('deployments')
   })
 
-  it('creates a starter application from the selected template', async () => {
+  it('creates a real one-click template from the curated service catalog', async () => {
     const user = userEvent.setup()
     const onNavigate = vi.fn()
 
     render(<DeployWizardView onNavigate={onNavigate} />)
 
-    await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: /Next\.js/i }))
+    await user.click(screen.getByRole('button', { name: /Service/i }))
+    await user.click(screen.getByRole('button', { name: /n8n \+ PostgreSQL/i }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Deploy now' }))
 
     await waitFor(() => {
-      expect(createPublicApplication).toHaveBeenCalledWith({
+      expect(createOneClickService).toHaveBeenCalledWith({
         server_uuid: 'server-1',
         project_uuid: 'project-1',
         environment_name: 'production',
         environment_uuid: 'env-1',
-        name: 'nextjs',
-        git_repository: 'https://github.com/vercel/next.js',
-        git_branch: 'canary',
-        build_pack: 'nixpacks',
-        ports_exposes: '3000',
-        domains: undefined,
+        name: 'n8n-with-postgresql',
+        type: 'n8n-with-postgresql',
         instant_deploy: true,
       })
     })
@@ -552,7 +545,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Private' }))
     await waitFor(() => {
       expect(screen.getByDisplayValue('Acme GitHub App')).toBeTruthy()
@@ -587,7 +579,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.click(screen.getByRole('button', { name: 'Private' }))
     await waitFor(() => {
       expect(screen.getByDisplayValue('Acme GitHub App')).toBeTruthy()
@@ -630,7 +621,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.clear(screen.getByPlaceholderText('https://github.com/acme/app'))
     await user.type(screen.getByPlaceholderText('https://github.com/acme/app'), 'git@git.example.com:acme/private-app.git')
     await user.click(screen.getByRole('button', { name: 'Private' }))
@@ -670,7 +660,6 @@ describe('DeployWizardView', () => {
     render(<DeployWizardView onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole('button', { name: /Application/i }))
-    await user.click(screen.getByRole('button', { name: 'Git URL' }))
     await user.clear(screen.getByPlaceholderText('https://github.com/acme/app'))
     await user.type(screen.getByPlaceholderText('https://github.com/acme/app'), 'git@git.example.com:acme/private-app.git')
     await user.click(screen.getByRole('button', { name: 'Private' }))

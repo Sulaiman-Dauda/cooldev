@@ -974,12 +974,20 @@
 .table-row.is-active strong { color: var(--nav-active-text); }
 
 /* ─── Log output ─────────────────────────────────────────── */
-.log-card {
-  margin: 0;
-  padding: 12px 14px;
+.log-card-shell {
+  max-height: min(28rem, 60vh);
+  overflow: auto;
   border-radius: 8px;
   background: #000;
   border: 1px solid var(--border);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.log-card {
+  margin: 0;
+  padding: 12px 14px;
+  min-height: 100%;
   color: #a1a1aa;
   font-family: var(--font-mono);
   font-size: 0.76rem;
