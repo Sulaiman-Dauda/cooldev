@@ -119,17 +119,20 @@ jobs:
 
       - name: Scan built image with Trivy
         id: trivy_scan
-        uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
-        with:
-          image-ref: cooldev:ci-scan
-          format: sarif
-          output: trivy-ci-results.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          vuln-type: os,library
-          scanners: vuln
-          exit-code: '1'
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/work" \
+            aquasec/trivy:0.57.1 image \
+            --format sarif \
+            --output /work/trivy-ci-results.sarif \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --vuln-type os,library \
+            --scanners vuln \
+            --exit-code 1 \
+            cooldev:ci-scan
 
       - name: Upload Trivy scan results
         if: always()
