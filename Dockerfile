@@ -26,9 +26,14 @@ LABEL org.opencontainers.image.title="CoolDev" \
       org.opencontainers.image.source="${REPO_URL}"
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev \
+      && rm -f package.json package-lock.json node_modules/.package-lock.json \
+      && npm cache clean --force \
+      && rm -rf /usr/local/lib/node_modules/npm \
+      && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist/client ./dist/client
+COPY --from=build /app/dist/server ./dist/server
 
 RUN mkdir -p /var/lib/cooldev
 
