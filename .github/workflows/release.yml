@@ -260,7 +260,6 @@ jobs:
             ${{ steps.meta.outputs.changelog_snapshot_file }}
             ${{ steps.meta.outputs.sbom_file }}
             ${{ steps.meta.outputs.trivy_file }}
-            CHANGELOG.md
             docs/deployment-diagram.md
             docs/release-versioning.md
             docs/release-checklist.md
@@ -285,7 +284,6 @@ jobs:
             "${{ steps.meta.outputs.changelog_snapshot_file }}" \
             "${{ steps.meta.outputs.sbom_file }}" \
             "${{ steps.meta.outputs.trivy_file }}" \
-            CHANGELOG.md \
             docs/deployment-diagram.md \
             docs/release-versioning.md \
             docs/release-checklist.md \
