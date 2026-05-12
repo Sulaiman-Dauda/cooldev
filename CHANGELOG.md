@@ -2,6 +2,13 @@
 
 Generated from git history by scripts/update-changelog.sh.
 
+## v0.1.3 - 2026-05-12
+
+### Other changes
+
+- Remove duplicate changelog asset (e480cb4)
+
+
 ## v0.1.2 - 2026-05-12
 
 ### Other changes
