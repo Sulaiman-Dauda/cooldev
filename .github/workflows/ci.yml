@@ -107,6 +107,7 @@ jobs:
           (
             cd "$tmpdir"
             cp .env.example .env
+            printf '\nCOOLDEV_IMAGE=%s\n' 'ghcr.io/example/cooldev:ci-validate' >> .env
             docker compose -f docker-compose.release.yml config >/dev/null
           )
           rm -rf "$tmpdir"
@@ -135,7 +136,7 @@ jobs:
             cooldev:ci-scan
 
       - name: Upload Trivy scan results
-        if: always()
+        if: always() && hashFiles('trivy-ci-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-ci-results.sarif

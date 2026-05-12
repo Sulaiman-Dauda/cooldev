@@ -174,7 +174,7 @@ jobs:
             "${{ steps.meta.outputs.image_name }}@${{ steps.docker_build.outputs.digest }}"
 
       - name: Upload Trivy scan results
-        if: always()
+        if: always() && hashFiles('dist/release/*.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ steps.meta.outputs.trivy_file }}
