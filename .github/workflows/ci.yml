@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'release/**'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Enforce conventional commits for pull requests
+        if: github.event_name == 'pull_request'
+        run: |
+          bash scripts/check-conventional-commits.sh \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "${{ github.event.pull_request.head.sha }}"
+
+      - name: Enforce changelog gating for version bumps in pull requests
+        if: github.event_name == 'pull_request'
+        run: |
+          bash scripts/check-changelog.sh \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "${{ github.event.pull_request.head.sha }}"
+
+      - name: Run unit and view tests
+        run: npm test
+
+  build-and-smoke:
+    name: Build, smoke, and scan
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production assets
+        run: npm run build
+
+      - name: Validate shell scripts
+        run: |
+          bash -n install.sh
+          bash -n scripts/fresh-server-smoke-test.sh
+          bash -n scripts/create-release-tag.sh
+          bash -n scripts/ci-smoke.sh
+          bash -n scripts/build-release-bundle.sh
+          bash -n scripts/next-version.sh
+          bash -n scripts/bump-version.sh
+          bash -n scripts/generate-release-notes.sh
+          bash -n scripts/update-changelog.sh
+          bash -n scripts/check-conventional-commits.sh
+          bash -n scripts/check-changelog.sh
+
+      - name: Validate version helper scripts
+        run: |
+          bash scripts/next-version.sh patch >/dev/null
+          bash scripts/next-version.sh minor >/dev/null
+          bash scripts/next-version.sh prerelease --preid rc >/dev/null
+          bash scripts/bump-version.sh patch --dry-run >/dev/null
+
+      - name: Validate release-note helpers
+        run: |
+          bash scripts/generate-release-notes.sh --help >/dev/null
+          bash scripts/update-changelog.sh --help >/dev/null
+
+      - name: Run local smoke test against the built server
+        run: bash scripts/ci-smoke.sh
+
+      - name: Validate release compose file
+        run: |
+          tmpdir=$(mktemp -d)
+          cp docker-compose.release.yml .env.example "$tmpdir"
+          (
+            cd "$tmpdir"
+            cp .env.example .env
+            docker compose -f docker-compose.release.yml config >/dev/null
+          )
+          rm -rf "$tmpdir"
+
+      - name: Validate release bundle build
+        run: bash scripts/build-release-bundle.sh --version 0.0.0-ci
+
+      - name: Build container image for scanning
+        run: docker build -t cooldev:ci-scan .
+
+      - name: Scan built image with Trivy
+        id: trivy_scan
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          image-ref: cooldev:ci-scan
+          format: sarif
+          output: trivy-ci-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          vuln-type: os,library
+          scanners: vuln
+          exit-code: '1'
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ci-results.sarif
+          category: trivy-image-ci
+
+      - name: Fail if the image vulnerability scan found issues
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "High or critical vulnerabilities were detected in the built image."
+          exit 1

@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a product bug in CoolDev
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please give enough detail to reproduce the problem.
+  - type: input
+    id: version
+    attributes:
+      label: CoolDev version
+      description: The version or tag you are running.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install-path
+    attributes:
+      label: Install path
+      options:
+        - install.sh bootstrap flow
+        - docker-compose.release.yml
+        - local development
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly.
+      placeholder: CoolDev redirects back to the bootstrap URL after sign-in.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the bootstrap URL
+        2. Sign in as the owner
+        3. Save a domain in Settings
+        4. Observe the broken behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Paste useful server logs, browser errors, or screenshots.
+      render: shell
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Include OS, browser, reverse-proxy state, and whether DNS/HTTPS was already live.

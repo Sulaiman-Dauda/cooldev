@@ -1,0 +1,104 @@
+"area: frontend":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**'
+          - 'public/**'
+          - 'index.html'
+
+"area: backend":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'server/**'
+
+"area: auth":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'server/app.ts'
+          - 'server/persistence.ts'
+          - 'server/mailer.ts'
+          - 'src/views/LoginView.tsx'
+          - 'src/lib/auth.tsx'
+          - 'src/lib/api.ts'
+
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'README.md'
+          - 'CONTRIBUTING.md'
+          - 'SECURITY.md'
+          - 'CHANGELOG.md'
+          - '.github/ISSUE_TEMPLATE/**'
+          - '.github/PULL_REQUEST_TEMPLATE/**'
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - 'scripts/ci-smoke.sh'
+          - 'scripts/check-conventional-commits.sh'
+          - 'scripts/check-changelog.sh'
+
+"area: installer":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'install.sh'
+          - 'Dockerfile'
+          - 'docker-compose.release.yml'
+          - '.env.example'
+
+"area: governance":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/CODEOWNERS'
+          - '.github/repository-labels.json'
+          - '.github/labeler.yml'
+          - '.github/dependabot.yml'
+          - 'docs/branch-strategy.md'
+          - 'docs/github-ruleset-checklist.md'
+          - 'docs/commit-conventions.md'
+          - 'docs/release-versioning.md'
+          - 'docs/release-checklist.md'
+          - 'docs/release-hardening.md'
+          - 'CONTRIBUTING.md'
+
+"area: security":
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'server/app.ts'
+          - 'server/persistence.ts'
+          - 'server/mailer.ts'
+          - '.github/workflows/release.yml'
+          - '.github/workflows/ci.yml'
+          - '.github/workflows/dependency-review.yml'
+          - '.github/workflows/secret-scanning.yml'
+          - 'docs/release-hardening.md'
+          - 'SECURITY.md'
+
+"area: tests":
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.test.ts'
+          - '**/*.test.tsx'
+          - 'scripts/fresh-server-smoke-test.sh'
+          - 'scripts/ci-smoke.sh'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'package-lock.json'
+          - 'Dockerfile'
+          - '.github/dependabot.yml'
+
+versioning:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'package-lock.json'
+          - 'CHANGELOG.md'
+          - 'scripts/next-version.sh'
+          - 'scripts/bump-version.sh'
+          - 'scripts/generate-release-notes.sh'
+          - 'scripts/update-changelog.sh'
+          - 'scripts/create-release-tag.sh'

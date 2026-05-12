@@ -1,0 +1,27 @@
+FROM node:24-bookworm-slim AS runtime
+ARG COOLDEV_VERSION=dev
+ARG VCS_REF=unknown
+ARG BUILD_DATE=unknown
+ARG REPO_URL=unknown
+ENV NODE_ENV=production
+ENV PORT=80
+ENV COOLDEV_DATA_DIR=/var/lib/cooldev
+WORKDIR /app
+
+LABEL org.opencontainers.image.title="CoolDev" \
+    org.opencontainers.image.description="Self-hosted CoolDev server and UI" \
+    org.opencontainers.image.version="${COOLDEV_VERSION}" \
+    org.opencontainers.image.revision="${VCS_REF}" \
+    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.source="${REPO_URL}"
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY dist ./dist
+
+RUN mkdir -p /var/lib/cooldev
+
+EXPOSE 80
+
+CMD ["node", "dist/server/index.js"]

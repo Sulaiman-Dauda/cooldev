@@ -1,0 +1,266 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+  security-events: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production assets
+        run: npm run build
+
+      - name: Validate shell scripts
+        run: |
+          bash -n install.sh
+          bash -n scripts/fresh-server-smoke-test.sh
+          bash -n scripts/create-release-tag.sh
+          bash -n scripts/ci-smoke.sh
+          bash -n scripts/build-release-bundle.sh
+          bash -n scripts/next-version.sh
+          bash -n scripts/bump-version.sh
+          bash -n scripts/generate-release-notes.sh
+          bash -n scripts/update-changelog.sh
+          bash -n scripts/check-conventional-commits.sh
+          bash -n scripts/check-changelog.sh
+
+      - name: Run smoke test against the built server
+        run: bash scripts/ci-smoke.sh
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            CURRENT_REF="${{ github.ref_name }}"
+          else
+            VERSION=$(node -e "console.log(JSON.parse(require('node:fs').readFileSync('package.json','utf8')).version)")
+            TAG_NAME="v${VERSION}"
+            CURRENT_REF="HEAD"
+          fi
+          VERSION="${TAG_NAME#v}"
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/cooldev"
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RELEASE_NOTES_FILE="dist/release/release-notes-${TAG_NAME}.md"
+          CHANGELOG_ARTIFACT_FILE="dist/release/changelog-${TAG_NAME}.md"
+          CHANGELOG_SNAPSHOT_FILE="dist/release/CHANGELOG.md"
+          SBOM_FILE="dist/release/sbom-${TAG_NAME}.spdx.json"
+          TRIVY_FILE="dist/release/trivy-${TAG_NAME}.sarif"
+          INSTALLER_URL="https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/install.sh"
+          BUNDLE_IMAGE="${IMAGE_NAME}:${TAG_NAME}"
+
+          if [[ "$VERSION" == *-* ]]; then
+            IMAGE_TAGS="${IMAGE_NAME}:${TAG_NAME}"
+          else
+            IMAGE_TAGS="${IMAGE_NAME}:${TAG_NAME},${IMAGE_NAME}:latest"
+          fi
+
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "current_ref=${CURRENT_REF}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "image_tags=${IMAGE_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "bundle_image=${BUNDLE_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+          echo "release_notes_file=${RELEASE_NOTES_FILE}" >> "$GITHUB_OUTPUT"
+          echo "changelog_artifact_file=${CHANGELOG_ARTIFACT_FILE}" >> "$GITHUB_OUTPUT"
+          echo "changelog_snapshot_file=${CHANGELOG_SNAPSHOT_FILE}" >> "$GITHUB_OUTPUT"
+          echo "sbom_file=${SBOM_FILE}" >> "$GITHUB_OUTPUT"
+          echo "trivy_file=${TRIVY_FILE}" >> "$GITHUB_OUTPUT"
+          echo "installer_url=${INSTALLER_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        run: |
+          mkdir -p dist/release
+          bash scripts/generate-release-notes.sh \
+            --current-ref "${{ steps.meta.outputs.current_ref }}" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --output "${{ steps.meta.outputs.release_notes_file }}"
+          bash scripts/generate-release-notes.sh \
+            --format changelog \
+            --current-ref "${{ steps.meta.outputs.current_ref }}" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --output "${{ steps.meta.outputs.changelog_artifact_file }}"
+          bash scripts/update-changelog.sh \
+            --current-ref "${{ steps.meta.outputs.current_ref }}" \
+            --version "${{ steps.meta.outputs.version }}" \
+            --file "${{ steps.meta.outputs.changelog_snapshot_file }}"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image_tags }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            COOLDEV_VERSION=${{ steps.meta.outputs.version }}
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+            REPO_URL=https://github.com/${{ github.repository }}
+
+      - name: Scan pushed image with Trivy
+        id: trivy_scan
+        uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
+        with:
+          image-ref: ${{ steps.meta.outputs.image_name }}@${{ steps.docker_build.outputs.digest }}
+          format: sarif
+          output: ${{ steps.meta.outputs.trivy_file }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          vuln-type: os,library
+          scanners: vuln
+          exit-code: "1"
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.meta.outputs.trivy_file }}
+          category: trivy-image-release
+
+      - name: Fail if the release image vulnerability scan found issues
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "High or critical vulnerabilities were detected in the release image."
+          exit 1
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image digest
+        env:
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          IMAGE_DIGEST: ${{ steps.docker_build.outputs.digest }}
+        run: |
+          cosign sign --yes "${IMAGE_NAME}@${IMAGE_DIGEST}"
+
+      - name: Publish provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.meta.outputs.image_name }}
+          subject-digest: ${{ steps.docker_build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SPDX SBOM
+        env:
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          IMAGE_DIGEST: ${{ steps.docker_build.outputs.digest }}
+          SBOM_FILE: ${{ steps.meta.outputs.sbom_file }}
+        run: |
+          mkdir -p dist/release
+          syft "registry:${IMAGE_NAME}@${IMAGE_DIGEST}" -o "spdx-json=${SBOM_FILE}"
+
+      - name: Attest SPDX SBOM
+        env:
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          IMAGE_DIGEST: ${{ steps.docker_build.outputs.digest }}
+          SBOM_FILE: ${{ steps.meta.outputs.sbom_file }}
+        run: |
+          cosign attest --yes \
+            --predicate "${SBOM_FILE}" \
+            --type spdxjson \
+            "${IMAGE_NAME}@${IMAGE_DIGEST}"
+
+      - name: Build release bundle
+        run: |
+          bash scripts/build-release-bundle.sh \
+            --version "${{ steps.meta.outputs.version }}" \
+            --repository "${{ github.repository }}" \
+            --image "${{ steps.meta.outputs.bundle_image }}" \
+            --installer-url "${{ steps.meta.outputs.installer_url }}" \
+            --release-notes "${{ steps.meta.outputs.release_notes_file }}" \
+            --changelog "${{ steps.meta.outputs.changelog_snapshot_file }}" \
+            --sbom "${{ steps.meta.outputs.sbom_file }}" \
+            --scan-report "${{ steps.meta.outputs.trivy_file }}"
+
+      - name: Upload release bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cooldev-release-bundle-${{ steps.meta.outputs.version }}
+          include-hidden-files: true
+          path: |
+            dist/release/cooldev-release-bundle-${{ steps.meta.outputs.version }}.tar.gz
+            dist/release/install.sh
+            dist/release/.env.example
+            dist/release/docker-compose.release.yml
+            dist/release/production-release.md
+            dist/release/release-hardening.md
+            ${{ steps.meta.outputs.release_notes_file }}
+            ${{ steps.meta.outputs.changelog_artifact_file }}
+            ${{ steps.meta.outputs.changelog_snapshot_file }}
+            ${{ steps.meta.outputs.sbom_file }}
+            ${{ steps.meta.outputs.trivy_file }}
+            CHANGELOG.md
+            docs/deployment-diagram.md
+            docs/release-versioning.md
+            docs/release-checklist.md
+            docs/commit-conventions.md
+
+      - name: Publish GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ steps.meta.outputs.release_notes_file }}
+          files: |
+            dist/release/cooldev-release-bundle-${{ steps.meta.outputs.version }}.tar.gz
+            dist/release/install.sh
+            dist/release/.env.example
+            dist/release/docker-compose.release.yml
+            dist/release/production-release.md
+            dist/release/release-hardening.md
+            ${{ steps.meta.outputs.release_notes_file }}
+            ${{ steps.meta.outputs.changelog_artifact_file }}
+            ${{ steps.meta.outputs.changelog_snapshot_file }}
+            ${{ steps.meta.outputs.sbom_file }}
+            ${{ steps.meta.outputs.trivy_file }}
+            CHANGELOG.md
+            docs/deployment-diagram.md
+            docs/release-versioning.md
+            docs/release-checklist.md
+            docs/commit-conventions.md

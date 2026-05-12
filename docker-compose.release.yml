@@ -1,0 +1,47 @@
+services:
+  cooldev:
+    image: ${COOLDEV_IMAGE:?set COOLDEV_IMAGE in .env or use the stamped release .env.example}
+    container_name: cooldev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 80
+      COOLDEV_DATA_DIR: /var/lib/cooldev
+      COOLDEV_DOCKER_SOCKET_PATH: /var/run/docker.sock
+      COOLDEV_BOOTSTRAP_URL: ${COOLDEV_BOOTSTRAP_URL:-http://203.0.113.10:3001}
+      COOLDEV_PLATFORM_BASE_URL: ${COOLDEV_PLATFORM_BASE_URL:-http://coolify:8080}
+      COOLDEV_PLATFORM_API_TOKEN: ${COOLDEV_PLATFORM_API_TOKEN:?set COOLDEV_PLATFORM_API_TOKEN in .env}
+      COOLDEV_PASSWORD_RESET_TTL_MINUTES: ${COOLDEV_PASSWORD_RESET_TTL_MINUTES:-30}
+      COOLDEV_SMTP_HOST: ${COOLDEV_SMTP_HOST:-}
+      COOLDEV_SMTP_PORT: ${COOLDEV_SMTP_PORT:-587}
+      COOLDEV_SMTP_SECURE: ${COOLDEV_SMTP_SECURE:-false}
+      COOLDEV_SMTP_USER: ${COOLDEV_SMTP_USER:-}
+      COOLDEV_SMTP_PASS: ${COOLDEV_SMTP_PASS:-}
+      COOLDEV_SMTP_FROM: ${COOLDEV_SMTP_FROM:-}
+    ports:
+      - "${COOLDEV_PORT:-3001}:80"
+    volumes:
+      - ${COOLDEV_DATA_PATH:-/var/lib/cooldev}:/var/lib/cooldev
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /data/coolify/proxy:/var/lib/cooldev/platform-proxy
+    networks:
+      - coolify
+      - coolify-proxy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1/api/healthz').then(r=>r.json()).then(d=>process.exit(d.status==='ok'?0:1)).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+networks:
+  coolify:
+    external: true
+  coolify-proxy:
+    external: true

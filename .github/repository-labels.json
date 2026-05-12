@@ -1,0 +1,19 @@
+[
+  {"name":"bug","color":"d73a4a","description":"Something is not working as expected"},
+  {"name":"enhancement","color":"a2eeef","description":"New feature or product improvement"},
+  {"name":"dependencies","color":"0366d6","description":"Dependency or ecosystem maintenance updates"},
+  {"name":"regression","color":"b60205","description":"Behavior that worked before but is now broken"},
+  {"name":"release","color":"5319e7","description":"Release-related work or release process changes"},
+  {"name":"prerelease","color":"6f42c1","description":"Prerelease or release-candidate work"},
+  {"name":"versioning","color":"1d76db","description":"Version bump, changelog, or release-note changes"},
+  {"name":"area: frontend","color":"0e8a16","description":"Frontend UI and client behavior"},
+  {"name":"area: backend","color":"0052cc","description":"Server-side runtime and API behavior"},
+  {"name":"area: auth","color":"b60205","description":"Authentication, sessions, CSRF, or password reset"},
+  {"name":"area: docs","color":"0366d6","description":"Documentation changes"},
+  {"name":"area: ci","color":"c5def5","description":"CI, workflows, automation, and release infrastructure"},
+  {"name":"area: installer","color":"fbca04","description":"Installer, runtime wiring, or deployment bundle changes"},
+  {"name":"area: governance","color":"bfdadc","description":"Governance, templates, CODEOWNERS, or contributing process"},
+  {"name":"area: security","color":"d93f0b","description":"Security hardening, supply-chain, or vulnerability work"},
+  {"name":"area: tests","color":"f9d0c4","description":"Tests, smoke checks, or validation-only changes"},
+  {"name":"needs-triage","color":"ededed","description":"New item waiting for maintainer triage"}
+]

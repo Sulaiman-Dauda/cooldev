@@ -1,0 +1,80 @@
+name: Release regression
+description: Report a bug that blocks or regresses a release
+labels:
+  - bug
+  - regression
+  - release
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for release regressions, release blockers, or post-release production bugs.
+  - type: input
+    id: affected-version
+    attributes:
+      label: Affected release version
+      placeholder: v0.1.0 or v1.0.0-rc.1
+    validations:
+      required: true
+  - type: input
+    id: last-good-version
+    attributes:
+      label: Last known good version
+      placeholder: v0.0.9
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - release blocker
+        - critical regression
+        - high
+        - medium
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - bootstrap/login
+        - password reset
+        - domain cutover
+        - HTTPS/certificates
+        - server onboarding
+        - deployment flow
+        - installer/runtime
+        - release pipeline
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression summary
+      description: Explain what broke in the release and why it is a blocker/regression.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Install the tagged release
+        2. Open the bootstrap URL
+        3. Create the owner account
+        4. Save the domain
+        5. Observe the failure
+    validations:
+      required: true
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Workaround or rollback
+      description: If you found a workaround, rollback, or mitigation, describe it here.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, and release evidence
+      render: shell

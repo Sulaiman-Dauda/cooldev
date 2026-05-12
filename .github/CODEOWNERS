@@ -1,0 +1,25 @@
+# Replace the placeholder owner below before enabling required CODEOWNER review.
+# Example: @your-org/cooldev-maintainers
+
+* @YOUR_ORG/cooldev-maintainers
+
+# Product screens and frontend behavior
+/src/ @YOUR_ORG/cooldev-maintainers
+/public/ @YOUR_ORG/cooldev-maintainers
+
+# Server runtime, auth, domain automation, and platform bridge
+/server/ @YOUR_ORG/cooldev-maintainers
+/install.sh @YOUR_ORG/cooldev-maintainers
+/docker-compose.release.yml @YOUR_ORG/cooldev-maintainers
+/Dockerfile @YOUR_ORG/cooldev-maintainers
+/.env.example @YOUR_ORG/cooldev-maintainers
+
+# Governance, CI, release process, and templates
+/.github/ @YOUR_ORG/cooldev-maintainers
+/scripts/ @YOUR_ORG/cooldev-maintainers
+/docs/ @YOUR_ORG/cooldev-maintainers
+/README.md @YOUR_ORG/cooldev-maintainers
+/CONTRIBUTING.md @YOUR_ORG/cooldev-maintainers
+/CHANGELOG.md @YOUR_ORG/cooldev-maintainers
+/package.json @YOUR_ORG/cooldev-maintainers
+/package-lock.json @YOUR_ORG/cooldev-maintainers
