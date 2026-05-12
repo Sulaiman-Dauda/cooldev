@@ -1524,6 +1524,297 @@
 }
 
 /* ─── Settings view ──────────────────────────────────────── */
+.settings-view { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.settings-panel { display: flex; flex-direction: column; gap: 0; }
+
+.settings-description {
+  font-size: 0.79rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin: 0 0 14px;
+}
+
+/* ── 4-up stat cards (session panel) ── */
+.settings-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  transition: border-color 200ms ease;
+}
+
+.settings-stat-card:hover { border-color: var(--border-strong); }
+
+.settings-stat-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.settings-stat-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Status list ── */
+.settings-status-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.settings-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  transition: background 150ms ease;
+}
+
+.settings-status-list .settings-status-item:last-child {
+  border-bottom: none;
+}
+
+.settings-status-item:hover { background: var(--bg-subtle); }
+
+.settings-status-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-status-body strong { font-size: 0.84rem; color: var(--text-heading); }
+.settings-status-body small  { font-size: 0.75rem; color: var(--text-muted); }
+
+/* ── Subform ── */
+.settings-subform {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+/* ── Checkbox row ── */
+.settings-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.81rem;
+  color: var(--text-body);
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.settings-checkbox-row input {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+/* ── Form actions row ── */
+.settings-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-domain-hint {
+  flex: 1;
+  min-width: 160px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+/* ── Conflict list ── */
+.settings-conflict-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+  font-size: 0.79rem;
+}
+
+.settings-conflict-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-body);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.settings-conflict-domain {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--status-failed-fg);
+  font-weight: 600;
+}
+
+/* ── Toggle card ── */
+.settings-toggle-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  margin-top: 6px;
+}
+
+.settings-toggle-info { display: grid; gap: 4px; flex: 1; }
+.settings-toggle-info strong { font-size: 0.85rem; color: var(--text-heading); }
+.settings-toggle-info p { font-size: 0.77rem; color: var(--text-muted); margin: 0; line-height: 1.55; }
+
+/* ── 2FA state card ── */
+.twofa-state-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  margin: 10px 0 0;
+  transition: border-color 200ms ease;
+}
+
+.twofa-unavailable {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.twofa-unavailable .twofa-state-icon { color: var(--status-failed-fg); }
+
+.twofa-enabled {
+  border-color: rgba(34, 197, 94, 0.22);
+  background: rgba(34, 197, 94, 0.04);
+}
+
+.twofa-enabled .twofa-state-icon { color: var(--status-ready-fg); }
+
+.twofa-disabled .twofa-state-icon { color: var(--text-muted); }
+
+.twofa-state-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: color 200ms ease;
+}
+
+.twofa-state-body { display: grid; gap: 3px; flex: 1; }
+.twofa-state-body strong { font-size: 0.86rem; color: var(--text-heading); }
+.twofa-state-body p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.55; }
+
+/* ── 2FA setup form ── */
+.twofa-setup-form { gap: 16px; }
+
+.twofa-setup-steps {
+  display: grid;
+  gap: 16px;
+}
+
+.twofa-step {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.twofa-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.twofa-step-body { display: grid; gap: 6px; }
+.twofa-step-body strong { font-size: 0.84rem; color: var(--text-heading); }
+.twofa-step-body p { font-size: 0.77rem; color: var(--text-muted); margin: 0; line-height: 1.55; }
+
+.twofa-qr-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  width: fit-content;
+  border: 1px solid var(--border);
+}
+
+.twofa-qr svg { display: block; }
+
+.twofa-recovery-grid {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.twofa-recovery-code {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-code);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-heading);
+  letter-spacing: 0.04em;
+  text-align: center;
+  transition: border-color 160ms ease;
+}
+
+.twofa-recovery-code:hover { border-color: var(--border-strong); }
+
+.twofa-confirm-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Legacy compat */
 .settings-row {
   display: flex;
   align-items: center;
@@ -1534,26 +1825,9 @@
 }
 
 .settings-row:last-of-type { border-bottom: none; }
-
-.settings-row > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
+.settings-row > div { display: flex; flex-direction: column; gap: 2px; }
 .settings-row strong { font-size: 0.85rem; color: var(--text-heading); }
 .settings-row small  { font-size: 0.76rem; color: var(--text-muted); }
-
-.settings-subform {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-top: 8px;
-}
 
 /* ─── Toggle button ──────────────────────────────────────── */
 .toggle-btn {
@@ -1813,6 +2087,7 @@
   .sidebar-footer { display: none; }
 
   .content-grid,
+  .settings-view,
   .deployments-grid,
   .diagnostics-grid,
   .step-grid,
@@ -1823,6 +2098,10 @@
   .form-grid,
   .resource-type-grid { grid-template-columns: 1fr; }
 
+  .settings-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .twofa-recovery-grid { grid-template-columns: repeat(3, 1fr); }
+
   .stats-bar { grid-column: 1; }
 
   .template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1830,6 +2109,10 @@
 
 @media (max-width: 720px) {
   .main-panel { padding: 14px; }
+
+  .settings-grid-4 { grid-template-columns: 1fr; }
+  .twofa-recovery-grid { grid-template-columns: repeat(2, 1fr); }
+  .twofa-confirm-row { flex-direction: column; align-items: stretch; }
 
   .topbar,
   .panel-heading,

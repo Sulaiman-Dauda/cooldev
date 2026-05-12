@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { AlertIcon, ExternalLinkIcon, KeyIcon, ShieldIcon } from '../components/Icons'
+import { useEffect, useRef, useState } from 'react'
+import { AlertIcon, CheckIcon, CopyIcon, ExternalLinkIcon, KeyIcon, ShieldIcon } from '../components/Icons'
 import {
   ApiError,
   checkHealth,
@@ -27,58 +27,39 @@ import { useAuth } from '../lib/auth'
 type LoadStatus = 'checking' | 'ready' | 'failed'
 type SecurityAction = 'idle' | 'enabling' | 'confirming' | 'disabling'
 
+/** Strip upstream platform brand names from error text. */
+function sanitizeError(message: string): string {
+  return message.replace(/\bcoolify\b/gi, 'CoolDev')
+}
+
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) {
-    return error.message
+    return sanitizeError(error.message)
   }
-
   return fallback
 }
 
 function accessChipClass(accessStatus: ApiAccessStatus | null, accessError: string | null): string {
-  if (accessError) {
-    return 'chip-failed'
-  }
-
-  if (!accessStatus) {
-    return 'chip-neutral'
-  }
-
-  if (accessStatus.status === 'live') {
-    return 'chip-ready'
-  }
-
+  if (accessError) return 'chip-failed'
+  if (!accessStatus) return 'chip-neutral'
+  if (accessStatus.status === 'live') return 'chip-ready'
   if (
     accessStatus.status === 'bootstrap'
     || accessStatus.status === 'pending-dns'
     || accessStatus.status === 'provisioning-ssl'
-  ) {
-    return 'chip-neutral'
-  }
-
+  ) return 'chip-neutral'
   return 'chip-failed'
 }
 
 function accessChipLabel(accessStatus: ApiAccessStatus | null, accessError: string | null): string {
-  if (accessError) {
-    return 'Unavailable'
-  }
-
-  if (!accessStatus) {
-    return 'Checking'
-  }
-
+  if (accessError) return 'Unavailable'
+  if (!accessStatus) return 'Checking'
   switch (accessStatus.status) {
-    case 'live':
-      return 'Live'
-    case 'bootstrap':
-      return 'Bootstrap'
-    case 'pending-dns':
-      return 'Waiting for DNS'
-    case 'provisioning-ssl':
-      return 'Provisioning'
-    default:
-      return 'Unavailable'
+    case 'live': return 'Live'
+    case 'bootstrap': return 'Bootstrap'
+    case 'pending-dns': return 'Waiting for DNS'
+    case 'provisioning-ssl': return 'Provisioning'
+    default: return 'Unavailable'
   }
 }
 
@@ -131,8 +112,9 @@ export function SettingsView() {
     qrCodeSvg: string
     recoveryCodes: string[]
   } | null>(null)
-  // null = unknown, true = capable, false = not available on this installation
   const [twoFactorCapable, setTwoFactorCapable] = useState<boolean | null>(null)
+  const [copiedCodes, setCopiedCodes] = useState(false)
+  const codeInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -151,9 +133,7 @@ export function SettingsView() {
         getWorkspacePreferences(),
       ])
 
-      if (cancelled) {
-        return
-      }
+      if (cancelled) return
 
       const [
         nextAccessResult,
@@ -165,6 +145,7 @@ export function SettingsView() {
         profileResult,
         preferencesResult,
       ] = results
+
       const fallbackWorkspaceDomain = nextAccessResult.status === 'fulfilled'
         ? nextAccessResult.value.currentDomain ?? ''
         : ''
@@ -227,7 +208,6 @@ export function SettingsView() {
 
       if (instanceSettingsResult.status === 'fulfilled' && instanceSettingsResult.value) {
         const workspaceSettingsSupported = instanceSettingsResult.value.workspace_settings_supported !== false
-
         setInstanceSettings(instanceSettingsResult.value)
         setInstanceSettingsStatus(workspaceSettingsSupported ? 'ready' : 'failed')
         setInstanceSettingsError(
@@ -250,12 +230,10 @@ export function SettingsView() {
 
       if (profileResult.status === 'fulfilled' && profileResult.value) {
         const twoFactorSupported = profileResult.value.two_factor_supported !== false
-
         setProfile(profileResult.value)
         setProfileStatus('ready')
         setProfileError(null)
         setTwoFactorCapable(twoFactorSupported)
-
         if (!twoFactorSupported || !profileResult.value.two_factor_pending) {
           setTwoFactorSetup(null)
           setTwoFactorCode('')
@@ -264,15 +242,11 @@ export function SettingsView() {
         setProfile(null)
         setProfileStatus('failed')
         const profileErr = profileResult.status === 'rejected' ? profileResult.reason : null
-        // A 404 on the profile endpoint means two-factor management is not available on this installation.
         if (profileErr instanceof ApiError && profileErr.status === 404) {
           setTwoFactorCapable(false)
         }
         setProfileError(
-          getErrorMessage(
-            profileErr,
-            'Could not load the current profile.',
-          ),
+          getErrorMessage(profileErr, 'Could not load the current profile.'),
         )
         setTwoFactorSetup(null)
         setTwoFactorCode('')
@@ -282,26 +256,20 @@ export function SettingsView() {
         if (preferencesResult.status === 'fulfilled') {
           setAutoBackups(preferencesResult.value.autoBackups)
         } else {
-          // Fall back to localStorage for dev/mock environments
           setAutoBackups(localStorage.getItem('cooldev-auto-backups') !== 'false')
         }
-
         setAutoBackupsLoaded(true)
       }
     }
 
     void loadWorkspaceMetadata()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [platformReady])
 
   useEffect(() => {
     if (!accessStatus?.currentDomain || accessStatus.status === 'live' || accessStatus.status === 'unavailable') {
       return
     }
-
     const timerId = window.setInterval(() => {
       void getAccessStatus()
         .then((nextStatus) => {
@@ -312,10 +280,7 @@ export function SettingsView() {
           setAccessStatusError(getErrorMessage(error, 'Could not refresh domain access status.'))
         })
     }, 5000)
-
-    return () => {
-      window.clearInterval(timerId)
-    }
+    return () => { window.clearInterval(timerId) }
   }, [accessStatus?.currentDomain, accessStatus?.status])
 
   useEffect(() => {
@@ -328,15 +293,11 @@ export function SettingsView() {
       setRedirectingToSecureDomain(false)
       return
     }
-
     setRedirectingToSecureDomain(true)
     const timerId = window.setTimeout(() => {
       window.location.assign(accessStatus.secureUrl as string)
     }, 1800)
-
-    return () => {
-      window.clearTimeout(timerId)
-    }
+    return () => { window.clearTimeout(timerId) }
   }, [accessStatus, redirectWhenReady])
 
   async function saveWorkspaceDomain() {
@@ -352,7 +313,6 @@ export function SettingsView() {
         forceDomainOverride,
       })
       const workspaceSettingsSynced = result.workspaceSettingsSynced !== false
-
       setInstanceSettings(result.instanceSettings)
       setInstanceSettingsStatus(workspaceSettingsSynced ? 'ready' : 'failed')
       setInstanceSettingsError(
@@ -370,7 +330,7 @@ export function SettingsView() {
     } catch (error) {
       if (error instanceof ApiError) {
         const errorData = error.data as ApiDomainConflictResponse | undefined
-        setWorkspaceDomainError(errorData?.message ?? error.message)
+        setWorkspaceDomainError(sanitizeError(errorData?.message ?? error.message))
         setWorkspaceDomainConflictWarning(errorData?.warning ?? null)
         setWorkspaceDomainConflicts(errorData?.conflicts ?? [])
       } else {
@@ -384,11 +344,9 @@ export function SettingsView() {
   async function toggleAutoBackups() {
     const next = !autoBackups
     setAutoBackups(next)
-
     try {
       await updateWorkspacePreferences({ autoBackups: next })
     } catch {
-      // Fall back to localStorage so the toggle still persists locally
       localStorage.setItem('cooldev-auto-backups', String(next))
     }
   }
@@ -396,7 +354,6 @@ export function SettingsView() {
   async function handleEnableTwoFactor() {
     setSecurityAction('enabling')
     setSecurityError(null)
-
     try {
       const result = await enableTwoFactorAuthentication()
       setProfile(result.profile)
@@ -407,13 +364,12 @@ export function SettingsView() {
         recoveryCodes: result.recovery_codes,
       })
       setTwoFactorCode('')
+      setTimeout(() => codeInputRef.current?.focus(), 300)
     } catch (error) {
-      // A 404 means this installation does not expose the two-factor management endpoints.
       if (error instanceof ApiError && error.status === 404) {
         setTwoFactorCapable(false)
         setSecurityError(
-          'Two-factor management is not available on this workspace yet. ' +
-          'Update the workspace runtime to enable it.',
+          'Two-factor authentication is not available on this CoolDev installation. Update CoolDev to enable it.',
         )
       } else {
         setSecurityError(getErrorMessage(error, 'Could not start two-factor authentication setup.'))
@@ -428,10 +384,8 @@ export function SettingsView() {
       setSecurityError('Enter the current 6-digit code from your authenticator app.')
       return
     }
-
     setSecurityAction('confirming')
     setSecurityError(null)
-
     try {
       const nextProfile = await confirmTwoFactorAuthentication(twoFactorCode.trim())
       setProfile(nextProfile)
@@ -448,7 +402,6 @@ export function SettingsView() {
   async function handleDisableTwoFactor() {
     setSecurityAction('disabling')
     setSecurityError(null)
-
     try {
       const nextProfile = await disableTwoFactorAuthentication()
       setProfile(nextProfile)
@@ -459,7 +412,7 @@ export function SettingsView() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         setTwoFactorCapable(false)
-        setSecurityError('Two-factor management is not available on this workspace yet.')
+        setSecurityError('Two-factor authentication is not available on this CoolDev installation.')
       } else {
         setSecurityError(getErrorMessage(error, 'Could not disable two-factor authentication.'))
       }
@@ -468,96 +421,104 @@ export function SettingsView() {
     }
   }
 
+  function copyRecoveryCodes() {
+    if (!twoFactorSetup) return
+    void navigator.clipboard.writeText(twoFactorSetup.recoveryCodes.join('\n')).then(() => {
+      setCopiedCodes(true)
+      setTimeout(() => setCopiedCodes(false), 2000)
+    })
+  }
+
+  // ── Derived values ───────────────────────────────────────────────────────────
+
   const canManageWorkspaceDomain = platformReady && accessStatus?.proxyProvider !== 'unavailable'
   const workspaceSettingsFallbackActive = instanceSettingsStatus === 'failed' && canManageWorkspaceDomain
+
   const instanceStatusSummary =
     instanceSettingsStatus === 'ready' && instanceSettings
       ? `${instanceSettings.instance_name}${instanceSettings.instance_timezone ? ` • ${instanceSettings.instance_timezone}` : ''}${instanceSettings.public_ipv4 ? ` • ${instanceSettings.public_ipv4}` : ''}`
       : instanceSettingsStatus === 'checking'
-        ? 'Loading shared workspace settings.'
+        ? 'Loading shared workspace settings…'
         : workspaceSettingsFallbackActive
           ? 'Shared workspace settings are not available yet. Domain management still works in CoolDev.'
           : instanceSettingsError ?? 'Workspace settings unavailable.'
 
-  const securityChipText =
+  const twoFaStatusText =
     twoFactorCapable === false
-      ? 'Unavailable'
+      ? 'Not Available'
       : profileStatus === 'checking'
-        ? 'Checking'
+        ? 'Checking…'
         : profileStatus === 'failed'
           ? 'Unavailable'
           : profile?.two_factor_enabled
             ? 'Enabled'
             : profile?.two_factor_pending
               ? 'Pending'
-              : 'Off'
+              : 'Disabled'
 
-  const securityChipClass =
-    twoFactorCapable === false
-      ? 'chip-failed'
-      : profileStatus === 'checking'
-        ? 'chip-neutral'
-        : profileStatus === 'failed'
-          ? 'chip-failed'
-          : profile?.two_factor_enabled
-            ? 'chip-ready'
-            : profile?.two_factor_pending
-              ? 'chip-neutral'
+  const twoFaChipClass =
+    twoFactorCapable === false ? 'chip-failed'
+      : profileStatus === 'checking' ? 'chip-neutral'
+        : profileStatus === 'failed' ? 'chip-failed'
+          : profile?.two_factor_enabled ? 'chip-ready'
+            : profile?.two_factor_pending ? 'chip-neutral'
               : 'chip-failed'
 
-  const securitySummary =
+  const twoFaSummary =
     twoFactorCapable === false
-      ? 'Two-factor management is not available on this workspace yet. Update the workspace runtime to enable it.'
+      ? 'Two-factor authentication is not available on this CoolDev installation.'
       : profileStatus === 'checking'
-        ? 'Loading the authenticated user profile.'
+        ? 'Loading the authenticated user profile…'
         : profileStatus === 'failed'
           ? profileError ?? 'Profile unavailable.'
           : profile?.two_factor_enabled
-            ? 'This account has a confirmed authenticator app and recovery codes.'
+            ? 'This account is protected with an authenticator app and recovery codes.'
             : profile?.two_factor_pending
-              ? 'Finish setup by entering the current 6-digit code from your authenticator app.'
-              : 'This account does not have two-factor authentication enabled yet.'
+              ? 'Scan the QR code and enter the 6-digit code below to finish setup.'
+              : 'Add a second layer of security to protect your account.'
 
   const bootstrapAccessUrl = accessStatus?.bootstrapUrl || window.location.origin
   const currentDomainLabel = accessStatus?.currentDomain?.trim()
-    ? `Current domain: ${accessStatus.currentDomain}`
-    : `No custom domain is configured yet. Keep using ${bootstrapAccessUrl} until DNS is ready.`
+    ? `Active: ${accessStatus.currentDomain}`
+    : `No custom domain configured — using ${bootstrapAccessUrl}`
+
   const domainAccessChipClass = accessChipClass(accessStatus, accessStatusError)
   const domainAccessChipLabel = accessChipLabel(accessStatus, accessStatusError)
-  const sslChipLabel = accessStatus?.sslStatus === 'ready'
-    ? 'Ready'
-    : accessStatus?.sslStatus === 'pending'
-      ? 'Automatic'
-      : accessStatus?.sslStatus === 'unavailable'
-        ? 'Unavailable'
+
+  const sslChipLabel = accessStatus?.sslStatus === 'ready' ? 'Ready'
+    : accessStatus?.sslStatus === 'pending' ? 'Automatic'
+      : accessStatus?.sslStatus === 'unavailable' ? 'Unavailable'
         : 'Inactive'
-  const sslChipClass = accessStatus?.sslStatus === 'ready'
-    ? 'chip-ready'
-    : accessStatus?.sslStatus === 'pending'
-      ? 'chip-neutral'
-      : accessStatus?.sslStatus === 'inactive'
-        ? 'chip-neutral'
+  const sslChipClass = accessStatus?.sslStatus === 'ready' ? 'chip-ready'
+    : accessStatus?.sslStatus === 'pending' ? 'chip-neutral'
+      : accessStatus?.sslStatus === 'inactive' ? 'chip-neutral'
         : 'chip-failed'
+
   const openSecureDomainUrl = accessStatus?.status === 'live' ? accessStatus.secureUrl : null
+
   const sslSummary = accessStatus?.status === 'live'
     ? `HTTPS is active on ${accessStatus.secureUrl}.`
     : accessStatus?.status === 'pending-dns'
       ? 'Certificates will be issued automatically after DNS points to this server.'
       : accessStatus?.status === 'provisioning-ssl'
-        ? 'CoolDev is automatically switching traffic to 80/443 and requesting the TLS certificate.'
+        ? 'CoolDev is requesting a TLS certificate and switching traffic to 80/443.'
         : accessStatus?.status === 'bootstrap'
-          ? 'Save a domain to turn on automatic HTTPS and reverse proxy cutover.'
+          ? 'Save a domain to enable automatic HTTPS.'
           : accessStatus?.status === 'unavailable'
-            ? accessStatus.detail
-            : 'Checking domain automation status.'
+            ? (accessStatus.detail ?? 'Domain automation unavailable.')
+            : 'Checking domain automation status…'
+
+  const isSetupInProgress = Boolean(twoFactorSetup || profile?.two_factor_pending)
 
   return (
-    <section className="content-grid">
-      <article className="panel panel-wide">
+    <section className="content-grid settings-view">
+
+      {/* ── Workspace session ─────────────────────────────────── */}
+      <article className="panel panel-wide settings-panel">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Session</p>
-            <h3>Workspace access</h3>
+            <h3>Workspace overview</h3>
           </div>
           <button
             type="button"
@@ -568,118 +529,110 @@ export function SettingsView() {
           </button>
         </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Workspace runtime</strong>
-            <small>
-              {platformReady
-                ? 'Connected and operating normally.'
-                : 'Still finishing setup for this workspace.'}
-            </small>
+        <div className="settings-grid-4">
+          <div className="settings-stat-card">
+            <span className="settings-stat-label">Runtime</span>
+            <span className={`chip ${platformReady ? 'chip-ready' : 'chip-neutral'}`}>
+              {platformReady ? 'Ready' : 'Starting'}
+            </span>
+            <p className="settings-stat-detail">
+              {platformReady ? 'Connected and operating normally.' : 'Still finishing setup for this workspace.'}
+            </p>
           </div>
-          <span className={`chip ${platformReady ? 'chip-ready' : 'chip-neutral'}`}>
-            {platformReady ? 'Ready' : 'Starting'}
-          </span>
-        </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Runtime health</strong>
-            <small>
+          <div className="settings-stat-card">
+            <span className="settings-stat-label">Health</span>
+            <span className={`chip ${platformHealthStatus === 'ready' ? 'chip-ready' : platformHealthStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
+              {platformHealthStatus === 'ready' ? 'Healthy' : platformHealthStatus === 'checking' ? 'Checking' : 'Unreachable'}
+            </span>
+            <p className="settings-stat-detail">
               {platformHealthStatus === 'ready'
                 ? 'Health check passed.'
                 : platformHealthStatus === 'checking'
                   ? 'Running health check…'
-                  : `Cannot reach the workspace runtime. ${platformHealthError ?? ''}`.trim()}
-            </small>
+                  : (platformHealthError ?? 'Cannot reach the workspace runtime.')}
+            </p>
           </div>
-          <span className={`chip ${platformHealthStatus === 'ready' ? 'chip-ready' : platformHealthStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
-            {platformHealthStatus === 'ready' ? 'Healthy' : platformHealthStatus === 'checking' ? 'Checking' : 'Unavailable'}
-          </span>
-        </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Runtime version</strong>
-            <small>
-              {platformVersion
-                ? `Version ${platformVersion}`
-                : platformVersionStatus === 'checking'
-                  ? 'Detecting the workspace runtime version.'
-                  : 'Version unavailable.'}
-            </small>
+          <div className="settings-stat-card">
+            <span className="settings-stat-label">Version</span>
+            <span className={`chip ${platformVersionStatus === 'ready' ? 'chip-ready' : platformVersionStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
+              {platformVersionStatus === 'ready' ? (platformVersion ?? 'Unknown') : platformVersionStatus === 'checking' ? 'Detecting' : 'Unknown'}
+            </span>
+            <p className="settings-stat-detail">
+              {platformVersion ? `Running v${platformVersion}.` : platformVersionStatus === 'checking' ? 'Detecting runtime version…' : 'Version unavailable.'}
+            </p>
           </div>
-          <span className={`chip ${platformVersionStatus === 'ready' ? 'chip-ready' : platformVersionStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
-            {platformVersionStatus === 'ready' ? 'Detected' : platformVersionStatus === 'checking' ? 'Checking' : 'Unavailable'}
-          </span>
-        </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Workspace team</strong>
-            <small>
+          <div className="settings-stat-card">
+            <span className="settings-stat-label">Team</span>
+            <span className={`chip ${teamStatus === 'ready' ? 'chip-ready' : teamStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
+              {teamStatus === 'ready' ? 'Synced' : teamStatus === 'checking' ? 'Loading' : 'Unavailable'}
+            </span>
+            <p className="settings-stat-detail">
               {teamStatus === 'ready' && currentTeam
-                ? `${currentTeam.name}${currentTeamMemberCount === null ? '' : ` • ${currentTeamMemberCount} ${currentTeamMemberCount === 1 ? 'member' : 'members'}`}`
+                ? `${currentTeam.name}${currentTeamMemberCount !== null ? ` · ${currentTeamMemberCount} ${currentTeamMemberCount === 1 ? 'member' : 'members'}` : ''}`
                 : teamStatus === 'checking'
-                  ? 'Loading the active workspace team.'
+                  ? 'Loading the active workspace team…'
                   : 'Team context unavailable.'}
-            </small>
+            </p>
           </div>
-          <span className={`chip ${teamStatus === 'ready' ? 'chip-ready' : teamStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
-            {teamStatus === 'ready' ? 'Synced' : teamStatus === 'checking' ? 'Checking' : 'Unavailable'}
-          </span>
         </div>
       </article>
 
-      <article className="panel">
+      {/* ── Domain & HTTPS ───────────────────────────────────── */}
+      <article className="panel settings-panel">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">Domain</p>
-            <h3>Access & HTTPS</h3>
+            <p className="eyebrow">Network</p>
+            <h3>Domain & HTTPS</h3>
           </div>
         </div>
-        <p className="field-hint" style={{ marginBottom: 12 }}>
-          CoolDev is accessible immediately on the bootstrap URL. Save a domain when
-          your DNS is ready—CoolDev handles the 80/443 cutover and HTTPS automatically.
+
+        <p className="settings-description">
+          CoolDev is accessible immediately on the bootstrap URL. Point your DNS and save a
+          custom domain — CoolDev handles the 80/443 cutover and TLS certificate automatically.
         </p>
 
-        <div className="settings-row">
-          <div>
-            <strong>Bootstrap URL</strong>
-            <small>{bootstrapAccessUrl}</small>
+        <div className="settings-status-list">
+          <div className="settings-status-item">
+            <div className="settings-status-body">
+              <strong>Bootstrap URL</strong>
+              <small style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}>{bootstrapAccessUrl}</small>
+            </div>
+            <span className="chip chip-ready">Live</span>
           </div>
-          <span className="chip chip-ready">Live</span>
-        </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Domain cutover</strong>
-            <small>{accessStatusError ?? accessStatus?.summary ?? 'Checking domain automation status.'}</small>
+          <div className="settings-status-item">
+            <div className="settings-status-body">
+              <strong>Domain cutover</strong>
+              <small>{accessStatusError ?? accessStatus?.summary ?? 'Checking domain automation status…'}</small>
+            </div>
+            <span className={`chip ${domainAccessChipClass}`}>{domainAccessChipLabel}</span>
           </div>
-          <span className={`chip ${domainAccessChipClass}`}>{domainAccessChipLabel}</span>
-        </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>HTTPS certificates</strong>
-            <small>{sslSummary}</small>
+          <div className="settings-status-item">
+            <div className="settings-status-body">
+              <strong>HTTPS certificates</strong>
+              <small>{sslSummary}</small>
+            </div>
+            <span className={`chip ${sslChipClass}`}>{sslChipLabel}</span>
           </div>
-          <span className={`chip ${sslChipClass}`}>{sslChipLabel}</span>
-        </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Workspace settings</strong>
-            <small>{instanceStatusSummary}</small>
+          <div className="settings-status-item">
+            <div className="settings-status-body">
+              <strong>Workspace settings</strong>
+              <small>{instanceStatusSummary}</small>
+            </div>
+            <span className={`chip ${instanceSettingsStatus === 'ready' ? 'chip-ready' : instanceSettingsStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
+              {instanceSettingsStatus === 'ready' ? 'Synced' : instanceSettingsStatus === 'checking' ? 'Checking' : 'Unavailable'}
+            </span>
           </div>
-          <span className={`chip ${instanceSettingsStatus === 'ready' ? 'chip-ready' : instanceSettingsStatus === 'checking' ? 'chip-neutral' : 'chip-failed'}`}>
-            {instanceSettingsStatus === 'ready' ? 'Synced' : instanceSettingsStatus === 'checking' ? 'Checking' : 'Unavailable'}
-          </span>
         </div>
 
         <div className="settings-subform">
           <label className="field">
-            <span>Workspace domain</span>
+            <span>Custom domain</span>
             <input
               type="url"
               value={workspaceDomain}
@@ -691,26 +644,16 @@ export function SettingsView() {
 
           {workspaceSettingsFallbackActive && (
             <p className="field-hint" style={{ margin: 0 }}>
-              CoolDev will keep this workspace domain active locally on this host while
-              shared settings remain unavailable.
+              CoolDev will keep this domain active locally while shared settings remain unavailable.
             </p>
           )}
 
-          <label
-            style={{
-              display: 'flex',
-              gap: 10,
-              alignItems: 'flex-start',
-              fontSize: '0.82rem',
-              color: 'var(--text-body)',
-            }}
-          >
+          <label className="settings-checkbox-row">
             <input
               type="checkbox"
               checked={forceDomainOverride}
               onChange={(event) => setForceDomainOverride(event.currentTarget.checked)}
               disabled={!canManageWorkspaceDomain || isSavingWorkspaceDomain}
-              style={{ marginTop: 2 }}
             />
             <span>Allow domain override if another resource is already using this domain</span>
           </label>
@@ -730,19 +673,11 @@ export function SettingsView() {
           )}
 
           {workspaceDomainConflicts.length > 0 && (
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 18,
-                display: 'grid',
-                gap: 6,
-                fontSize: '0.8rem',
-                color: 'var(--text-body)',
-              }}
-            >
+            <ul className="settings-conflict-list">
               {workspaceDomainConflicts.map((conflict) => (
                 <li key={`${conflict.resource_type}-${conflict.resource_uuid ?? conflict.resource_name}-${conflict.domain}`}>
-                  {conflict.domain} • {conflict.resource_name} ({conflict.resource_type})
+                  <span className="settings-conflict-domain">{conflict.domain}</span>
+                  <span>{conflict.resource_name} ({conflict.resource_type})</span>
                 </li>
               ))}
             </ul>
@@ -751,18 +686,18 @@ export function SettingsView() {
           {redirectingToSecureDomain && openSecureDomainUrl && (
             <div className="info-banner">
               <ExternalLinkIcon size={13} />
-              <p>Secure domain is live. Redirecting to {openSecureDomainUrl} now…</p>
+              <p>Secure domain is live. Redirecting to {openSecureDomainUrl}…</p>
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="settings-form-actions">
             <button
               type="button"
               className="primary-action"
               onClick={() => void saveWorkspaceDomain()}
               disabled={!canManageWorkspaceDomain || isSavingWorkspaceDomain}
             >
-              {isSavingWorkspaceDomain ? 'Saving...' : workspaceDomainSaved ? 'Saved' : 'Save domain'}
+              {isSavingWorkspaceDomain ? 'Saving…' : workspaceDomainSaved ? '✓ Saved' : 'Save domain'}
             </button>
 
             {openSecureDomainUrl && (
@@ -776,206 +711,206 @@ export function SettingsView() {
               </a>
             )}
 
-            <span className="field-hint">{currentDomainLabel}</span>
+            <span className="field-hint settings-domain-hint">{currentDomainLabel}</span>
           </div>
 
           {accessStatus?.detail && (
-            <p className="field-hint" style={{ margin: 0 }}>
-              {accessStatus.detail}
-            </p>
+            <p className="field-hint" style={{ margin: 0 }}>{accessStatus.detail}</p>
           )}
         </div>
       </article>
 
-      <article className="panel">
+      {/* ── Two-factor authentication ────────────────────────── */}
+      <article className="panel settings-panel">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Security</p>
             <h3>Two-factor authentication</h3>
           </div>
-          <ShieldIcon size={15} />
-        </div>
-        <div className="settings-row">
-          <div>
-            <strong>Current account</strong>
-            <small>
-              {profileStatus === 'ready' && profile
-                ? `${profile.name} • ${profile.email}`
-                : profileStatus === 'checking'
-                  ? 'Loading the authenticated user.'
-                  : profileError ?? 'Profile unavailable.'}
-            </small>
-          </div>
-          <span className={`chip ${securityChipClass}`}>{securityChipText}</span>
+          <ShieldIcon size={16} />
         </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Two-factor status</strong>
-            <small>{securitySummary}</small>
+        {/* Account row */}
+        <div className="settings-status-item" style={{ marginBottom: 4 }}>
+          <div className="settings-status-body">
+            <strong>Account</strong>
+            <small>
+              {profileStatus === 'ready' && profile
+                ? `${profile.name} · ${profile.email}`
+                : profileStatus === 'checking'
+                  ? 'Loading account…'
+                  : (profileError ?? 'Profile unavailable.')}
+            </small>
           </div>
-          <span className={`chip ${securityChipClass}`}>{securityChipText}</span>
+          <span className={`chip ${twoFaChipClass}`}>{twoFaStatusText}</span>
+        </div>
+
+        {/* 2FA state card */}
+        <div className={`twofa-state-card ${
+          twoFactorCapable === false ? 'twofa-unavailable'
+            : profile?.two_factor_enabled ? 'twofa-enabled'
+              : 'twofa-disabled'
+        }`}>
+          <div className="twofa-state-icon">
+            <ShieldIcon size={22} />
+          </div>
+          <div className="twofa-state-body">
+            <strong>
+              {twoFactorCapable === false ? 'Not available on this installation'
+                : profile?.two_factor_enabled ? '2FA is active'
+                  : profile?.two_factor_pending ? 'Setup in progress'
+                    : '2FA is not enabled'}
+            </strong>
+            <p>{twoFaSummary}</p>
+          </div>
         </div>
 
         {securityError && (
-          <div className="error-banner" style={{ marginTop: 12 }}>
+          <div className="error-banner" style={{ marginTop: 10 }}>
             <AlertIcon size={13} />
             <span>{securityError}</span>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-          {profileStatus === 'ready' && twoFactorCapable !== false && !profile?.two_factor_enabled && (
-            <button
-              type="button"
-              className="primary-action"
-              onClick={() => void handleEnableTwoFactor()}
-              disabled={securityAction !== 'idle'}
-            >
-              {securityAction === 'enabling'
-                ? 'Preparing setup...'
-                : profile?.two_factor_pending
-                  ? 'Generate new setup'
-                  : 'Enable 2FA'}
-            </button>
-          )}
-
-          {profile?.two_factor_enabled && twoFactorCapable !== false && (
-            <button
-              type="button"
-              className="secondary-action danger-action"
-              onClick={() => void handleDisableTwoFactor()}
-              disabled={securityAction !== 'idle'}
-            >
-              {securityAction === 'disabling' ? 'Disabling...' : 'Disable 2FA'}
-            </button>
-          )}
-
-          {twoFactorCapable === false && (
-            <div className="info-banner" style={{ flex: 1, marginTop: 0 }}>
-              <AlertIcon size={13} />
-              <div>
-                <strong>Not available on this installation</strong>
-                <p>
-                  Two-factor management is not available on this workspace yet.
-                  Update the runtime to enable two-factor authentication.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {(twoFactorSetup || profile?.two_factor_pending) && (
-          <div className="settings-subform" style={{ marginTop: 12 }}>
-            <p className="field-hint" style={{ margin: 0 }}>
-              Scan the authenticator QR code, store the recovery codes somewhere safe,
-              then confirm the current 6-digit code to finish setup.
-            </p>
-
-            {twoFactorSetup && (
-              <div
-                style={{
-                  display: 'grid',
-                  gap: 12,
-                }}
+        {/* Action buttons */}
+        {profileStatus === 'ready' && twoFactorCapable !== false && (
+          <div className="settings-form-actions" style={{ marginTop: 10 }}>
+            {!profile?.two_factor_enabled && (
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => void handleEnableTwoFactor()}
+                disabled={securityAction !== 'idle'}
               >
-                <div
-                  style={{
-                    display: 'grid',
-                    gap: 10,
-                    padding: 14,
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    background: 'var(--bg-subtle)',
-                  }}
-                >
-                  <strong style={{ fontSize: '0.84rem', color: 'var(--text-heading)' }}>Authenticator QR</strong>
-                  <div
-                    style={{ width: 'fit-content', maxWidth: '100%' }}
-                    dangerouslySetInnerHTML={{ __html: twoFactorSetup.qrCodeSvg }}
-                  />
-                </div>
+                {securityAction === 'enabling'
+                  ? 'Preparing setup…'
+                  : profile?.two_factor_pending
+                    ? 'Generate new QR code'
+                    : 'Enable 2FA'}
+              </button>
+            )}
 
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <strong style={{ fontSize: '0.84rem', color: 'var(--text-heading)' }}>Recovery codes</strong>
-                  <ul
-                    style={{
-                      listStyle: 'none',
-                      margin: 0,
-                      padding: 0,
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                      gap: 8,
-                    }}
-                  >
-                    {twoFactorSetup.recoveryCodes.map((code) => (
-                      <li
-                        key={code}
-                        style={{
-                          padding: '9px 10px',
-                          borderRadius: 8,
-                          border: '1px solid var(--border)',
-                          background: 'var(--bg-subtle)',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.78rem',
-                          color: 'var(--text-heading)',
-                        }}
-                      >
-                        {code}
-                      </li>
-                    ))}
-                  </ul>
+            {profile?.two_factor_enabled && (
+              <button
+                type="button"
+                className="secondary-action danger-action"
+                onClick={() => void handleDisableTwoFactor()}
+                disabled={securityAction !== 'idle'}
+              >
+                {securityAction === 'disabling' ? 'Disabling…' : 'Disable 2FA'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Setup flow */}
+        {isSetupInProgress && (
+          <div className="settings-subform twofa-setup-form">
+            {twoFactorSetup && (
+              <>
+                <div className="twofa-setup-steps">
+                  <div className="twofa-step">
+                    <span className="twofa-step-num">1</span>
+                    <div className="twofa-step-body">
+                      <strong>Scan QR code</strong>
+                      <p>Open your authenticator app (Google Authenticator, Authy, etc.) and scan this code.</p>
+                      <div className="twofa-qr-wrapper">
+                        <div
+                          className="twofa-qr"
+                          dangerouslySetInnerHTML={{ __html: twoFactorSetup.qrCodeSvg }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="twofa-step">
+                    <span className="twofa-step-num">2</span>
+                    <div className="twofa-step-body">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <strong>Save recovery codes</strong>
+                        <button
+                          type="button"
+                          className="secondary-action"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                          onClick={copyRecoveryCodes}
+                        >
+                          {copiedCodes ? <><CheckIcon size={12} /> Copied</> : <><CopyIcon size={12} /> Copy all</>}
+                        </button>
+                      </div>
+                      <p>Store these in a safe place. Each code can only be used once if you lose access to your authenticator.</p>
+                      <ul className="twofa-recovery-grid">
+                        {twoFactorSetup.recoveryCodes.map((code) => (
+                          <li key={code} className="twofa-recovery-code">{code}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="twofa-step">
+                    <span className="twofa-step-num">3</span>
+                    <div className="twofa-step-body">
+                      <strong>Confirm setup</strong>
+                      <p>Enter the current 6-digit code from your authenticator app to activate 2FA.</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             {!twoFactorSetup && (
               <p className="field-hint" style={{ margin: 0 }}>
-                If you already scanned the QR code, enter the current code below. If not,
-                generate a new setup payload.
+                Enter the current 6-digit code from your authenticator app, or generate a new QR code above.
               </p>
             )}
 
-            <label className="field">
-              <span>Authenticator code</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={twoFactorCode}
-                onChange={(event) => setTwoFactorCode(event.currentTarget.value)}
-                placeholder="123456"
-                disabled={securityAction !== 'idle'}
-              />
-            </label>
-
-            <button
-              type="button"
-              className="primary-action"
-              onClick={() => void handleConfirmTwoFactor()}
-              disabled={securityAction !== 'idle'}
-            >
-              {securityAction === 'confirming' ? 'Confirming...' : 'Confirm 2FA'}
-            </button>
+            <div className="twofa-confirm-row">
+              <label className="field" style={{ flex: 1 }}>
+                <span>Authenticator code</span>
+                <input
+                  ref={codeInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={twoFactorCode}
+                  onChange={(event) => setTwoFactorCode(event.currentTarget.value)}
+                  placeholder="123456"
+                  disabled={securityAction !== 'idle'}
+                  style={{ letterSpacing: '0.2em', fontFamily: 'var(--font-mono)', fontSize: '1.1rem' }}
+                />
+              </label>
+              <button
+                type="button"
+                className="primary-action"
+                style={{ alignSelf: 'flex-end' }}
+                onClick={() => void handleConfirmTwoFactor()}
+                disabled={securityAction !== 'idle' || twoFactorCode.length < 6}
+              >
+                {securityAction === 'confirming' ? 'Confirming…' : 'Confirm & Activate'}
+              </button>
+            </div>
           </div>
         )}
       </article>
 
-      <article className="panel">
+      {/* ── Automatic backups ─────────────────────────────────── */}
+      <article className="panel settings-panel">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Databases</p>
             <h3>Automatic backups</h3>
           </div>
         </div>
-        <p className="field-hint" style={{ marginBottom: 12 }}>
+
+        <p className="settings-description">
           When enabled, CoolDev applies a default daily backup schedule to every
           backup-supported managed database provisioned through the New Resource flow.
         </p>
-        <div className="toggle-row">
-          <div>
+
+        <div className="settings-toggle-card">
+          <div className="settings-toggle-info">
             <strong>Auto-backup managed databases</strong>
-            <p className="field-hint">Applies the default workspace backup schedule on creation for supported engines. Preference is saved server-side and persists across browsers.</p>
+            <p>Applies the default workspace backup schedule on creation for supported engines. Preference is saved server-side and persists across sessions.</p>
           </div>
           <button
             type="button"
@@ -987,33 +922,32 @@ export function SettingsView() {
             <span className="toggle-thumb" />
           </button>
         </div>
-        <p className="field-hint" style={{ marginTop: 10 }}>
-          Note: This preference is stored locally in your browser. Server-side backup
-          scheduling requires configuring backup settings per-database after creation.
-        </p>
       </article>
 
-      <article className="panel">
+      {/* ── SSH keys ─────────────────────────────────────────── */}
+      <article className="panel settings-panel">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Access keys</p>
             <h3>SSH keys</h3>
           </div>
-          <KeyIcon size={15} />
+          <KeyIcon size={16} />
         </div>
-        <p className="field-hint" style={{ marginBottom: 12 }}>
-          SSH keys are managed in the Providers section where you can add, view, and
-          delete keys used for server connections and private repository deployments.
+
+        <p className="settings-description">
+          SSH keys are managed in the Providers section — add, view, and delete keys used
+          for server connections and private repository deployments.
         </p>
-        <div className="settings-row">
-          <div>
+
+        <div className="settings-status-item">
+          <div className="settings-status-body">
             <strong>Key management</strong>
             <small>Add or remove SSH keys for deploy operations and server connections.</small>
           </div>
           <a
             href="/simple/providers"
             className="secondary-action"
-            style={{ textDecoration: 'none' }}
+            style={{ textDecoration: 'none', flexShrink: 0 }}
             onClick={(e) => {
               e.preventDefault()
               window.history.pushState({}, '', '/simple/providers')
@@ -1021,10 +955,11 @@ export function SettingsView() {
             }}
           >
             <ExternalLinkIcon size={13} />
-            Manage in Providers
+            Manage keys
           </a>
         </div>
       </article>
+
     </section>
   )
 }

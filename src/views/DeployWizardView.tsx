@@ -1,7 +1,7 @@
 ﻿import { useDeferredValue, useEffect, useState } from 'react'
 import { AppWindowIcon, ChevronRightIcon, DatabaseIcon, FileCodeIcon, GridIcon, SearchIcon } from '../components/Icons'
 import { providerConnections, sampleCompose } from '../data/productDefaults'
-import { databaseEngines, serviceTemplates } from '../data/templates'
+import { appTemplates, databaseEngines, serviceTemplates } from '../data/templates'
 import {
   ApiError,
   createApplicationBulkEnvs,
@@ -69,6 +69,11 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
   const [step, setStep] = useState(0)
   const [resourceType, setResourceType] = useState<ResourceType | null>(null)
 
+  // App-specific state
+  const [appMode, setAppMode] = useState<'template' | 'custom'>('custom')
+  const [templateSearch, setTemplateSearch] = useState('')
+  const [selectedAppTemplate, setSelectedAppTemplate] = useState<string | null>(null)
+
   // Repo state
   const [visibility, setVisibility] = useState<RepositoryVisibility>('public')
   const [repositoryUrl, setRepositoryUrl] = useState('https://github.com/acme/marketing-site')
@@ -124,6 +129,7 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
 
   const deferredRepoUrl = useDeferredValue(repositoryUrl)
   const deferredCompose = useDeferredValue(composeText)
+  const deferredTemplateSearch = useDeferredValue(templateSearch)
   const deferredServiceSearch = useDeferredValue(serviceSearch)
 
   const guessedProvider = guessProviderFromUrl(deferredRepoUrl)
@@ -135,12 +141,20 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
   )
   const composePreview = parseComposeImport(deferredCompose)
 
+  const filteredAppTemplates = appTemplates.filter(
+    (template) =>
+      template.name.toLowerCase().includes(deferredTemplateSearch.toLowerCase()) ||
+      template.tags.some((tag) => tag.toLowerCase().includes(deferredTemplateSearch.toLowerCase())),
+  )
   const filteredServices = serviceTemplates.filter(
     (s) =>
       s.name.toLowerCase().includes(deferredServiceSearch.toLowerCase()) ||
       s.tags.some((tag) => tag.toLowerCase().includes(deferredServiceSearch.toLowerCase())),
   )
-  const needsPrivateRepoCredentials = resourceType === 'app' && visibility === 'private'
+  const selectedTemplate = selectedAppTemplate
+    ? appTemplates.find((template) => template.id === selectedAppTemplate) ?? null
+    : null
+  const needsPrivateRepoCredentials = resourceType === 'app' && appMode === 'custom' && visibility === 'private'
   const canUseGithubApp = activeProvider === 'github' && githubApps.length > 0
   const canUseSavedPrivateKey = privateKeys.length > 0
   const selectedServer = availableServers.find((server) => server.uuid === selectedServerUuid)
@@ -595,6 +609,7 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
 
     const nextResourceName = resourceName.trim() || placeholderName(
       resourceType,
+      appMode === 'template' ? selectedAppTemplate : null,
       selectedEngine,
       selectedService,
     )
@@ -647,9 +662,24 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
       }
 
       if (resourceType === 'app') {
-        const gitRepository = repositoryUrl.trim()
-        const gitBranch = branch.trim() || 'main'
+        const deployFromTemplate = appMode === 'template'
+        const gitRepository = deployFromTemplate
+          ? selectedTemplate?.repositoryUrl
+          : repositoryUrl.trim()
+        const gitBranch = deployFromTemplate
+          ? selectedTemplate?.branch ?? 'main'
+          : branch.trim() || 'main'
+        const buildPack = deployFromTemplate
+          ? selectedTemplate?.buildPack ?? 'nixpacks'
+          : 'nixpacks'
+        const defaultPortsExposes = deployFromTemplate
+          ? selectedTemplate?.portsExposes ?? '80'
+          : '80'
         const environmentVariables = parseEnvironmentVariables(appEnvironmentVariables)
+
+        if (deployFromTemplate && !selectedTemplate) {
+          throw new Error('Choose a starter template before deploying.')
+        }
 
         if (!gitRepository) {
           throw new Error('Enter a Git repository URL before deploying.')
@@ -660,16 +690,16 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
           name: nextResourceName,
           git_repository: gitRepository,
           git_branch: gitBranch,
-          build_pack: 'nixpacks',
+          build_pack: buildPack,
           domains: normalizeAppDomain(domain),
           instant_deploy: true,
           force_domain_override: forceDomainOverride || undefined,
-          ...resolveAdvancedAppOptions('80'),
+          ...resolveAdvancedAppOptions(defaultPortsExposes),
         }
 
         let createdApplication
 
-        if (visibility === 'public') {
+        if (deployFromTemplate || visibility === 'public') {
           createdApplication = await createPublicApplication(applicationPayload)
         } else {
           const privateRepoCredentials = await resolvePrivateRepoCredentials(nextResourceName)
@@ -777,208 +807,272 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
             <div className="panel-heading">
               <div>
                 <p className="eyebrow">Application</p>
-                <h3>Connect a repository</h3>
-                <p className="field-hint">Use the service flow for real one-click templates from the bundled catalog.</p>
+                <h3>Choose a starter or connect a repository</h3>
+                <p className="field-hint">Start from a curated framework template or switch to a Git URL for any repository.</p>
+              </div>
+              <div className="segmented-control" aria-label="App source">
+                <button
+                  type="button"
+                  className={appMode === 'template' ? 'segment is-active' : 'segment'}
+                  onClick={() => setAppMode('template')}
+                >
+                  Templates
+                </button>
+                <button
+                  type="button"
+                  className={appMode === 'custom' ? 'segment is-active' : 'segment'}
+                  onClick={() => setAppMode('custom')}
+                >
+                  Git URL
+                </button>
               </div>
             </div>
 
-            <div className="wizard-layout">
-              <div className="stacked-panel">
-                <div className="subpanel">
-                  <div className="form-grid">
-                    <label className="field field-wide">
-                      <span>Repository URL</span>
-                      <input
-                        value={repositoryUrl}
-                        onChange={(e) => setRepositoryUrl(e.currentTarget.value)}
-                        placeholder="https://github.com/acme/app"
-                      />
-                      <small className="field-hint">Paste any Git URL and CoolDev detects the provider.</small>
-                    </label>
-                    <label className="field">
-                      <span>Branch</span>
-                      <input
-                        value={branch}
-                        onChange={(e) => setBranch(e.currentTarget.value)}
-                        placeholder="main"
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Domain</span>
-                      <input
-                        value={domain}
-                        onChange={(e) => {
-                          setDomain(e.currentTarget.value)
-                          setDomainConflict(null)
-                        }}
-                        placeholder="app.example.com"
-                      />
-                    </label>
-                  </div>
-                  <div className="toggle-row">
-                    <div>
-                      <strong>Repository visibility</strong>
-                      <p className="field-hint">Public repos need no credentials. Private repos reveal only the auth fields needed.</p>
-                    </div>
-                    <div className="segmented-control" aria-label="Visibility">
-                      <button type="button" className={visibility === 'public' ? 'segment is-active' : 'segment'} onClick={() => setVisibility('public')}>Public</button>
-                      <button type="button" className={visibility === 'private' ? 'segment is-active' : 'segment'} onClick={() => setVisibility('private')}>Private</button>
-                    </div>
-                  </div>
-                  {guessedProvider === null && (
-                    <label className="field field-wide">
-                      <span>Git provider</span>
-                      <select
-                        value={manualProvider}
-                        onChange={(e) => setManualProvider(e.currentTarget.value as ProviderKey)}
-                      >
-                        {providerConnections.map((p) => (
-                          <option key={p.key} value={p.key}>{p.name}</option>
+            {appMode === 'template' ? (
+              <>
+                <div className="template-search-box">
+                  <SearchIcon size={14} />
+                  <input
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.currentTarget.value)}
+                    placeholder="Search frameworks and starters..."
+                  />
+                </div>
+                <div className="template-grid">
+                  {filteredAppTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      className={`template-card${selectedAppTemplate === template.id ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedAppTemplate(template.id)}
+                    >
+                      <h4>{template.name}</h4>
+                      <p>{template.description}</p>
+                      <div className="template-tags">
+                        {template.tags.map((tag) => (
+                          <span key={tag} className="template-tag">{tag}</span>
                         ))}
-                      </select>
-                    </label>
-                  )}
-
-                  {visibility === 'private' && (
-                    <div className="field field-wide">
-                      <span>Private repo access</span>
-                      {providerAssetsLoading ? (
-                        <small className="field-hint">Loading saved provider credentials…</small>
-                      ) : null}
-                      {providerAssetsError ? (
-                        <small className="field-hint">Could not load saved provider credentials. {providerAssetsError}</small>
-                      ) : null}
-
-                      <div className="settings-subform" style={{ marginTop: 8 }}>
-                        <div className="toggle-row" style={{ borderTop: 'none', paddingTop: 0 }}>
-                          <div>
-                            <strong>Authentication method</strong>
-                            <p className="field-hint">
-                              {activeProvider === 'github'
-                                ? 'Use a connected GitHub App, reuse a saved SSH key, or paste a new deploy key without leaving this flow.'
-                                : 'Reuse a saved SSH key or paste a new deploy key without leaving this flow.'}
-                            </p>
-                          </div>
-                          <div className="segmented-control" aria-label="Private repo auth mode">
-                            {canUseGithubApp ? (
-                              <button
-                                type="button"
-                                className={privateRepoAuthMode === 'github-app' ? 'segment is-active' : 'segment'}
-                                onClick={() => setPrivateRepoAuthMode('github-app')}
-                              >
-                                GitHub App
-                              </button>
-                            ) : null}
-                            {canUseSavedPrivateKey ? (
-                              <button
-                                type="button"
-                                className={privateRepoAuthMode === 'saved-key' ? 'segment is-active' : 'segment'}
-                                onClick={() => setPrivateRepoAuthMode('saved-key')}
-                              >
-                                Saved SSH key
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              className={privateRepoAuthMode === 'paste-key' ? 'segment is-active' : 'segment'}
-                              onClick={() => setPrivateRepoAuthMode('paste-key')}
-                            >
-                              Paste new key
-                            </button>
-                          </div>
-                        </div>
-
-                        {privateRepoAuthMode === 'github-app' ? (
-                          canUseGithubApp ? (
-                            <label className="field field-wide">
-                              <span>GitHub App</span>
-                              <select
-                                value={selectedGithubAppUuid}
-                                onChange={(e) => setSelectedGithubAppUuid(e.currentTarget.value)}
-                              >
-                                {githubApps.map((app) => (
-                                  <option key={app.uuid} value={app.uuid}>{app.name}</option>
-                                ))}
-                              </select>
-                              <small className="field-hint">
-                                Best path for private GitHub repositories with repository discovery and webhook automation.
-                              </small>
-                            </label>
-                          ) : (
-                            <small className="field-hint">No GitHub App is connected yet. Switch to an SSH key to continue.</small>
-                          )
-                        ) : null}
-
-                        {privateRepoAuthMode === 'saved-key' ? (
-                          canUseSavedPrivateKey ? (
-                            <label className="field field-wide">
-                              <span>Saved SSH key</span>
-                              <select
-                                value={selectedPrivateKeyUuid}
-                                onChange={(e) => setSelectedPrivateKeyUuid(e.currentTarget.value)}
-                              >
-                                {privateKeys.map((key) => (
-                                  <option key={key.uuid} value={key.uuid}>{key.name}</option>
-                                ))}
-                              </select>
-                              <small className="field-hint">
-                                Reuse an SSH key already stored for this CoolDev team.
-                              </small>
-                            </label>
-                          ) : (
-                            <small className="field-hint">No saved SSH keys are available yet. Paste a new deploy key to continue.</small>
-                          )
-                        ) : null}
-
-                        {privateRepoAuthMode === 'paste-key' ? (
-                          <>
-                            <label className="field">
-                              <span>Deploy key name</span>
-                              <input
-                                value={newPrivateKeyName}
-                                onChange={(e) => setNewPrivateKeyName(e.currentTarget.value)}
-                                placeholder="my-app deploy key"
-                              />
-                            </label>
-                            <label className="field field-wide">
-                              <span>Private key</span>
-                              <textarea
-                                value={newPrivateKeyValue}
-                                onChange={(e) => setNewPrivateKeyValue(e.currentTarget.value)}
-                                rows={8}
-                                placeholder="Paste your OpenSSH private key"
-                              />
-                              <small className="field-hint">
-                                CoolDev will store this deploy key for the team and reuse it for future private repository deploys.
-                              </small>
-                            </label>
-                          </>
-                        ) : null}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <label className="field field-wide" style={{ marginTop: 16 }}>
+                  <span>Domain</span>
+                  <input
+                    value={domain}
+                    onChange={(e) => {
+                      setDomain(e.currentTarget.value)
+                      setDomainConflict(null)
+                    }}
+                    placeholder="app.example.com"
+                  />
+                  <small className="field-hint">Optional. Add a custom domain now or leave it blank and attach one later.</small>
+                </label>
+              </>
+            ) : (
+              <div className="wizard-layout">
+                <div className="stacked-panel">
+                  <div className="subpanel">
+                    <div className="form-grid">
+                      <label className="field field-wide">
+                        <span>Repository URL</span>
+                        <input
+                          value={repositoryUrl}
+                          onChange={(e) => setRepositoryUrl(e.currentTarget.value)}
+                          placeholder="https://github.com/acme/app"
+                        />
+                        <small className="field-hint">Paste any Git URL and CoolDev detects the provider.</small>
+                      </label>
+                      <label className="field">
+                        <span>Branch</span>
+                        <input
+                          value={branch}
+                          onChange={(e) => setBranch(e.currentTarget.value)}
+                          placeholder="main"
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Domain</span>
+                        <input
+                          value={domain}
+                          onChange={(e) => {
+                            setDomain(e.currentTarget.value)
+                            setDomainConflict(null)
+                          }}
+                          placeholder="app.example.com"
+                        />
+                      </label>
+                    </div>
+                    <div className="toggle-row">
+                      <div>
+                        <strong>Repository visibility</strong>
+                        <p className="field-hint">Public repos need no credentials. Private repos reveal only the auth fields needed.</p>
+                      </div>
+                      <div className="segmented-control" aria-label="Visibility">
+                        <button type="button" className={visibility === 'public' ? 'segment is-active' : 'segment'} onClick={() => setVisibility('public')}>Public</button>
+                        <button type="button" className={visibility === 'private' ? 'segment is-active' : 'segment'} onClick={() => setVisibility('private')}>Private</button>
                       </div>
                     </div>
-                  )}
+                    {guessedProvider === null && (
+                      <label className="field field-wide">
+                        <span>Git provider</span>
+                        <select
+                          value={manualProvider}
+                          onChange={(e) => setManualProvider(e.currentTarget.value as ProviderKey)}
+                        >
+                          {providerConnections.map((p) => (
+                            <option key={p.key} value={p.key}>{p.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+
+                    {visibility === 'private' && (
+                      <div className="field field-wide">
+                        <span>Private repo access</span>
+                        {providerAssetsLoading ? (
+                          <small className="field-hint">Loading saved provider credentials…</small>
+                        ) : null}
+                        {providerAssetsError ? (
+                          <small className="field-hint">Could not load saved provider credentials. {providerAssetsError}</small>
+                        ) : null}
+
+                        <div className="settings-subform" style={{ marginTop: 8 }}>
+                          <div className="toggle-row" style={{ borderTop: 'none', paddingTop: 0 }}>
+                            <div>
+                              <strong>Authentication method</strong>
+                              <p className="field-hint">
+                                {activeProvider === 'github'
+                                  ? 'Use a connected GitHub App, reuse a saved SSH key, or paste a new deploy key without leaving this flow.'
+                                  : 'Reuse a saved SSH key or paste a new deploy key without leaving this flow.'}
+                              </p>
+                            </div>
+                            <div className="segmented-control" aria-label="Private repo auth mode">
+                              {canUseGithubApp ? (
+                                <button
+                                  type="button"
+                                  className={privateRepoAuthMode === 'github-app' ? 'segment is-active' : 'segment'}
+                                  onClick={() => setPrivateRepoAuthMode('github-app')}
+                                >
+                                  GitHub App
+                                </button>
+                              ) : null}
+                              {canUseSavedPrivateKey ? (
+                                <button
+                                  type="button"
+                                  className={privateRepoAuthMode === 'saved-key' ? 'segment is-active' : 'segment'}
+                                  onClick={() => setPrivateRepoAuthMode('saved-key')}
+                                >
+                                  Saved SSH key
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className={privateRepoAuthMode === 'paste-key' ? 'segment is-active' : 'segment'}
+                                onClick={() => setPrivateRepoAuthMode('paste-key')}
+                              >
+                                Paste new key
+                              </button>
+                            </div>
+                          </div>
+
+                          {privateRepoAuthMode === 'github-app' ? (
+                            canUseGithubApp ? (
+                              <label className="field field-wide">
+                                <span>GitHub App</span>
+                                <select
+                                  value={selectedGithubAppUuid}
+                                  onChange={(e) => setSelectedGithubAppUuid(e.currentTarget.value)}
+                                >
+                                  {githubApps.map((app) => (
+                                    <option key={app.uuid} value={app.uuid}>{app.name}</option>
+                                  ))}
+                                </select>
+                                <small className="field-hint">
+                                  Best path for private GitHub repositories with repository discovery and webhook automation.
+                                </small>
+                              </label>
+                            ) : (
+                              <small className="field-hint">No GitHub App is connected yet. Switch to an SSH key to continue.</small>
+                            )
+                          ) : null}
+
+                          {privateRepoAuthMode === 'saved-key' ? (
+                            canUseSavedPrivateKey ? (
+                              <label className="field field-wide">
+                                <span>Saved SSH key</span>
+                                <select
+                                  value={selectedPrivateKeyUuid}
+                                  onChange={(e) => setSelectedPrivateKeyUuid(e.currentTarget.value)}
+                                >
+                                  {privateKeys.map((key) => (
+                                    <option key={key.uuid} value={key.uuid}>{key.name}</option>
+                                  ))}
+                                </select>
+                                <small className="field-hint">
+                                  Reuse an SSH key already stored for this CoolDev team.
+                                </small>
+                              </label>
+                            ) : (
+                              <small className="field-hint">No saved SSH keys are available yet. Paste a new deploy key to continue.</small>
+                            )
+                          ) : null}
+
+                          {privateRepoAuthMode === 'paste-key' ? (
+                            <>
+                              <label className="field">
+                                <span>Deploy key name</span>
+                                <input
+                                  value={newPrivateKeyName}
+                                  onChange={(e) => setNewPrivateKeyName(e.currentTarget.value)}
+                                  placeholder="my-app deploy key"
+                                />
+                              </label>
+                              <label className="field field-wide">
+                                <span>Private key</span>
+                                <textarea
+                                  value={newPrivateKeyValue}
+                                  onChange={(e) => setNewPrivateKeyValue(e.currentTarget.value)}
+                                  rows={8}
+                                  placeholder="Paste your OpenSSH private key"
+                                />
+                                <small className="field-hint">
+                                  CoolDev will store this deploy key for the team and reuse it for future private repository deploys.
+                                </small>
+                              </label>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <aside className="stacked-panel">
+                  <div className="subpanel subtle-panel">
+                    <p className="eyebrow">Detected provider</p>
+                    <h4>{providerProfile.name}</h4>
+                    <p><strong>Auth:</strong> {providerProfile.authLabel}</p>
+                    <p><strong>Webhook:</strong> {providerProfile.webhookSupport}</p>
+                    {providerProfile.requiredSecrets.length === 0 ? (
+                      <p className="field-hint">No credentials required for a public repository.</p>
+                    ) : (
+                      <ul className="plain-list compact-list">
+                        {providerProfile.requiredSecrets.map((s) => <li key={s}>{s}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </aside>
               </div>
-              <aside className="stacked-panel">
-                <div className="subpanel subtle-panel">
-                  <p className="eyebrow">Detected provider</p>
-                  <h4>{providerProfile.name}</h4>
-                  <p><strong>Auth:</strong> {providerProfile.authLabel}</p>
-                  <p><strong>Webhook:</strong> {providerProfile.webhookSupport}</p>
-                  {providerProfile.requiredSecrets.length === 0 ? (
-                    <p className="field-hint">No credentials required for a public repository.</p>
-                  ) : (
-                    <ul className="plain-list compact-list">
-                      {providerProfile.requiredSecrets.map((s) => <li key={s}>{s}</li>)}
-                    </ul>
-                  )}
-                </div>
-              </aside>
-            </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <button type="button" className="secondary-action" onClick={goBack}>Back</button>
-              <button type="button" className="primary-action" onClick={() => setStep(2)}>
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => setStep(2)}
+                disabled={appMode === 'template' && !selectedAppTemplate}
+              >
                 Continue
               </button>
             </div>
@@ -1052,7 +1146,7 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <button type="button" className="secondary-action" onClick={goBack}>Back</button>
-              <button type="button" className="primary-action" onClick={() => setStep(2)}>Continue</button>
+              <button type="button" className="primary-action" onClick={() => setStep(2)} disabled={!selectedService}>Continue</button>
             </div>
           </div>
         )}
@@ -1148,7 +1242,12 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
                       <input
                         value={resourceName}
                         onChange={(e) => setResourceName(e.currentTarget.value)}
-                        placeholder={placeholderName(resourceType, selectedEngine, selectedService)}
+                          placeholder={placeholderName(
+                            resourceType,
+                            appMode === 'template' ? selectedAppTemplate : null,
+                            selectedEngine,
+                            selectedService,
+                          )}
                       />
                     </label>
                     {(resourceType === 'app' || resourceType === 'service') && (
@@ -1299,7 +1398,7 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
                           <input
                             value={appPortsExposes}
                             onChange={(e) => setAppPortsExposes(e.currentTarget.value)}
-                            placeholder="80"
+                            placeholder={appMode === 'template' ? selectedTemplate?.portsExposes ?? '80' : '80'}
                           />
                           <small className="field-hint">Comma-separated ports, for example 3000 or 80,443.</small>
                         </label>
@@ -1420,7 +1519,13 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
                     <li><strong>Type</strong><span>{labelForType(resourceType)}</span></li>
                     <li>
                       <strong>Source</strong>
-                      <span>{deploySource(resourceType, selectedEngine, selectedService, composePreview.services.length)}</span>
+                      <span>{deploySource(
+                        resourceType,
+                        appMode === 'template' ? selectedAppTemplate : null,
+                        selectedEngine,
+                        selectedService,
+                        composePreview.services.length,
+                      )}</span>
                     </li>
                     <li>
                       <strong>Server</strong>
@@ -1442,7 +1547,7 @@ export function DeployWizardView({ onNavigate }: DeployWizardViewProps) {
                           : selectedEnvironment?.name ?? 'production'}
                       </span>
                     </li>
-                    {resourceType === 'app' && visibility === 'private' ? (
+                    {resourceType === 'app' && appMode === 'custom' && visibility === 'private' ? (
                       <li>
                         <strong>Auth</strong>
                         <span>{privateRepoAuthMode === 'github-app' ? 'GitHub App' : privateRepoAuthMode === 'saved-key' ? 'Saved SSH key' : 'New deploy key'}</span>
@@ -1482,10 +1587,11 @@ function labelForType(type: ResourceType): string {
 
 function placeholderName(
   type: ResourceType,
+  appTemplate: string | null,
   engine: string,
   service: string | null,
 ): string {
-  if (type === 'app') return 'my-app'
+  if (type === 'app') return appTemplate ?? 'my-app'
   if (type === 'database') return engine + '-db'
   if (type === 'service') return service ?? 'my-service'
   return 'my-stack'
@@ -1493,11 +1599,12 @@ function placeholderName(
 
 function deploySource(
   type: ResourceType,
+  appTemplate: string | null,
   engine: string,
   service: string | null,
   serviceCount: number,
 ): string {
-  if (type === 'app') return 'Git repository'
+  if (type === 'app') return appTemplates.find((template) => template.id === appTemplate)?.name ?? 'Git repository'
   if (type === 'database') return engine
   if (type === 'service') return serviceTemplates.find((template) => template.id === service)?.name ?? 'One-click template'
   return `${serviceCount} Compose services`

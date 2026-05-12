@@ -563,6 +563,11 @@ async function readJsonOrText(response: globalThis.Response): Promise<unknown> {
   return response.text().catch(() => '')
 }
 
+function sanitizePlatformMessage(message: string): string {
+  // Strip any upstream platform brand names so users only see CoolDev messaging.
+  return message.replace(/\bcoolify\b/gi, 'CoolDev')
+}
+
 function extractApiMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string') {
     return payload.message
@@ -1279,6 +1284,92 @@ export function createApp(options?: { rootDir?: string; store?: CooldevStore }) 
     }
   })
 
+  // ── Dedicated 2FA endpoint handlers (sanitise upstream brand names) ──────────
+
+  app.post('/api/platform/profile/two-factor', requireUser, async (_request, response) => {
+    try {
+      const upstreamResponse = await proxyPlatformRequest(store, '/profile/two-factor', { method: 'POST' })
+      const payload = await readJsonOrText(upstreamResponse)
+
+      if (upstreamResponse.ok) {
+        response.json(payload)
+        return
+      }
+
+      if (upstreamResponse.status === 404) {
+        response.status(404).json({
+          message: 'Two-factor authentication is not available on this CoolDev installation. Update CoolDev to enable it.',
+        })
+        return
+      }
+
+      response.status(upstreamResponse.status).json({
+        ...(payload && typeof payload === 'object' ? payload : {}),
+        message: sanitizePlatformMessage(extractApiMessage(payload, 'Could not start two-factor setup.')),
+      })
+    } catch (error) {
+      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the workspace runtime.') })
+    }
+  })
+
+  app.delete('/api/platform/profile/two-factor', requireUser, async (_request, response) => {
+    try {
+      const upstreamResponse = await proxyPlatformRequest(store, '/profile/two-factor', { method: 'DELETE' })
+      const payload = await readJsonOrText(upstreamResponse)
+
+      if (upstreamResponse.ok) {
+        response.json(payload)
+        return
+      }
+
+      if (upstreamResponse.status === 404) {
+        response.status(404).json({
+          message: 'Two-factor authentication is not available on this CoolDev installation. Update CoolDev to enable it.',
+        })
+        return
+      }
+
+      response.status(upstreamResponse.status).json({
+        ...(payload && typeof payload === 'object' ? payload : {}),
+        message: sanitizePlatformMessage(extractApiMessage(payload, 'Could not disable two-factor authentication.')),
+      })
+    } catch (error) {
+      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the workspace runtime.') })
+    }
+  })
+
+  app.post('/api/platform/profile/two-factor/confirm', requireUser, async (request, response) => {
+    try {
+      const upstreamResponse = await proxyPlatformRequest(store, '/profile/two-factor/confirm', {
+        method: 'POST',
+        body: JSON.stringify(request.body),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const payload = await readJsonOrText(upstreamResponse)
+
+      if (upstreamResponse.ok) {
+        response.json(payload)
+        return
+      }
+
+      if (upstreamResponse.status === 404) {
+        response.status(404).json({
+          message: 'Two-factor authentication is not available on this CoolDev installation. Update CoolDev to enable it.',
+        })
+        return
+      }
+
+      response.status(upstreamResponse.status).json({
+        ...(payload && typeof payload === 'object' ? payload : {}),
+        message: sanitizePlatformMessage(extractApiMessage(payload, 'Could not confirm two-factor authentication.')),
+      })
+    } catch (error) {
+      response.status(502).json({ message: getErrorMessage(error, 'Could not reach the workspace runtime.') })
+    }
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+
   app.get('/api/platform/profile', requireUser, async (_request, response) => {
     const { user } = getLocals(response)
 
@@ -1324,12 +1415,17 @@ export function createApp(options?: { rootDir?: string; store?: CooldevStore }) 
         method: request.method,
       })
 
-      const payload = await upstreamResponse.text()
+      const rawPayload = await upstreamResponse.text()
       const responseContentType = upstreamResponse.headers.get('content-type')
 
       if (responseContentType) {
         response.setHeader('Content-Type', responseContentType)
       }
+
+      // Sanitise any upstream brand names that leak through the generic proxy.
+      const payload = !upstreamResponse.ok && responseContentType?.includes('application/json')
+        ? rawPayload.replace(/\bCoolify\b/g, 'CoolDev').replace(/\bcoolify\b/g, 'CoolDev')
+        : rawPayload
 
       response.status(upstreamResponse.status).send(payload)
     } catch (error) {

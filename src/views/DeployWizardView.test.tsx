@@ -155,6 +155,37 @@ describe('DeployWizardView', () => {
     expect(onNavigate).toHaveBeenCalledWith('deployments')
   })
 
+  it('creates a starter application from the selected template', async () => {
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+
+    render(<DeployWizardView onNavigate={onNavigate} />)
+
+    await user.click(screen.getByRole('button', { name: /Application/i }))
+    await user.click(screen.getByRole('button', { name: 'Templates' }))
+    await user.click(screen.getByRole('button', { name: /Next\.js/i }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Deploy now' }))
+
+    await waitFor(() => {
+      expect(createPublicApplication).toHaveBeenCalledWith({
+        server_uuid: 'server-1',
+        project_uuid: 'project-1',
+        environment_name: 'production',
+        environment_uuid: 'env-1',
+        name: 'nextjs',
+        git_repository: 'https://github.com/vercel/next.js',
+        git_branch: 'canary',
+        build_pack: 'nixpacks',
+        ports_exposes: '3000',
+        domains: undefined,
+        instant_deploy: true,
+      })
+    })
+
+    expect(onNavigate).toHaveBeenCalledWith('deployments')
+  })
+
   it('normalizes a bare application domain to an https URL before deploying', async () => {
     const user = userEvent.setup()
     const onNavigate = vi.fn()
